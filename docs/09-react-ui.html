@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>09 · React truth UI — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="09"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 3 · Lesson 09</p>
+        <h1>React truth UI</h1>
+        <p class="lead">Product surface for queue and approvals. Never owns business rules. Kill <code>demoPosts</code>.</p>
+        <div class="meta-row"><span class="chip">Time · 1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>UI vs harness responsibilities</li>
+            <li>Loading / error / empty states</li>
+            <li>Vite proxy or <code>VITE_API_URL</code></li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Replace demo data in <code>client/src/components/Dashboard.tsx</code></li>
+            <li>Wire New post, Approve, Request changes to the API</li>
+            <li>Accounts tab lists real Instagram connections — not posts</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Refresh the browser; queue state is still there (SQLite).</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            Dashboard reads/writes only via <code>client/src/api.ts</code> (no demo posts).
+            Vite proxies <code>/api</code> → <code>:3001</code>; optional <code>VITE_API_URL</code>.
+            Queue filter uses <code>GET /api/posts?status=</code>.
+            Refresh reloads from SQLite. Accounts tab = <code>/api/admin/instagram</code>.
+            HITL actions (approve / request-changes / restart / iterations) stay server-owned.
+            Accounts tab: add / disconnect / remove via
+            <code>/api/admin/instagram</code> (status <code>configured</code> until Lesson 14 OAuth).
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Run</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap">pnpm --filter server dev   # :3001
+pnpm --filter client dev   # :5173 → proxies /api
+
+# Optional if not using the proxy:
+# VITE_API_URL=http://127.0.0.1:3001 pnpm --filter client dev</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p style="margin:0.75rem 0 0">
+            <strong>Answers:</strong> (1) Humans see durable queue truth and act.
+            (2) Browser operators via REST — same contracts as curl.
+            (3) Invent status, keep a parallel demo store, bypass policy.
+            (4) Refresh / reload; data still in SQLite; filter + open a post.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

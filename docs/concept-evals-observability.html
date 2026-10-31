@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Evals &amp; observability — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="evals"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept</p>
+        <h1>Evals &amp; observability</h1>
+        <p class="lead">
+          Observability answers “what happened?” Evals answer “was that any good?”
+          You need both before trusting a model swap (like moving to LM Studio).
+        </p>
+
+        <h2>Observability</h2>
+        <p>
+          Reconstruct a run: inputs, model calls, tool calls, decisions, errors,
+          latency, cost. For agents this means <strong>traces</strong>, not only
+          “HTTP 200” logs.
+        </p>
+        <pre><code>run_id: abc123
+goal: "Draft IG post about morning routines"
+  step 1  model    plan → use content_planning
+  step 2  tool     content_planning(...) → {hook, angle}
+  step 3  model    plan → write caption
+  step 4  tool     caption_writing(...) → {caption}
+  step 5  model    finish → pending_approval
+status: succeeded
+tokens: 4.2k   latency: 8.1s   model: local-qwen</code></pre>
+
+        <table>
+          <thead><tr><th>Signal</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Traces / spans</td><td>Reconstruct the decision loop</td></tr>
+            <tr><td>Tool I/O</td><td>Bad args, bad results, retries</td></tr>
+            <tr><td>Prompts + completions</td><td>Debug drift (redact secrets)</td></tr>
+            <tr><td>Status transitions</td><td>draft → pending_approval → …</td></tr>
+            <tr><td>Latency / tokens</td><td>Budgets and regressions</td></tr>
+            <tr><td>User actions</td><td>Approve / request-changes</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Evals</h2>
+        <p>Systematic quality tests — unit/integration tests for behavior, not only “didn’t throw.”</p>
+        <ul>
+          <li><strong>Skill / schema evals</strong> — fixed input → valid structured output</li>
+          <li><strong>Trajectory evals</strong> — right tools, no forbidden publish</li>
+          <li><strong>End-to-end evals</strong> — topic → draft scored by rubric</li>
+          <li><strong>Golden / regression set</strong> — re-run when prompts or models change</li>
+          <li><strong>Online evals</strong> — sample production; thumbs / request-changes rate</li>
+        </ul>
+
+        <h2>How they relate</h2>
+        <pre><code>Observability  →  traces explain a run
+                      ↓
+                 sample / golden cases
+                      ↓
+Evals          →  pass/fail + regressions
+                      ↓
+                 improve prompts, tools, policy</code></pre>
+
+        <div class="callout check">
+          <strong class="label">Course mapping</strong>
+          <p style="margin:0">
+            You build observability in <a href="04-durable-runs.html">Step 04</a> and
+            <a href="10-live-monitoring.html">Step 10</a>. You build evals in
+            <a href="16-evals.html">Step 16</a>.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

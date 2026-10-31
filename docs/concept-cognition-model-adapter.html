@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cognition deep dive — Model adapter — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="cognition"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Sub-chapter · Built in this repo</p>
+        <h1>Cognition: the model adapter</h1>
+        <p class="lead">
+          A detailed record of what “cognition” means in this architecture, what we
+          implemented for Chapter 01, how to run it against LM Studio, and what we
+          deliberately deferred (evals, observability, authority).
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Chapter 01 complete</span>
+          <span class="chip">OpenAI-compatible</span>
+          <span class="chip">LM Studio verified</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            Cognition is how the system <em>thinks</em> (LLM + structured skills).
+            The model adapter is the single door to that brain: one factory, OpenAI wire
+            protocol, env-swappable between LM Studio and cloud.
+          </p>
+        </div>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>1. Where cognition sits</h2>
+        <pre><code>Harness / React
+      ↓
+Orchestrator (authority — not this chapter)
+      ↓
+Agent loop / skills  ←── cognition uses the adapter here
+      ↓
+createModel()  →  LM Studio or OpenAI-compatible API
+      ↓
+Policy gate → world (IG, media)  ←── later chapters</code></pre>
+        <p>
+          We built cognition <strong>before</strong> full authority so we could learn
+          against a real local model without gating canned demos. Rule while
+          cognition-only: keep the API on localhost; no real publish.
+        </p>
+
+        <h3>Cognition vs authority (reminder)</h3>
+        <table>
+          <thead>
+            <tr><th></th><th>Cognition</th><th>Authority</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Job</strong></td>
+              <td>Draft, plan, choose next skill, structured output</td>
+              <td>Who may ask + whether the transition is legal</td>
+            </tr>
+            <tr>
+              <td><strong>This chapter</strong></td>
+              <td><strong>Done</strong> — adapter + ping</td>
+              <td>Deferred (partial status machine already exists)</td>
+            </tr>
+            <tr>
+              <td><strong>Must never</strong></td>
+              <td>Publish, own OAuth secrets, invent “success” when the model is down</td>
+              <td>Trust the model’s say-so as a permission</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>See also <a href="concept-policy-vs-auth.html">Policy vs operator auth</a>.</p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>2. Problem we solved</h2>
+        <p>Before Chapter 01, <code>server/src/skills/model.js</code> was Anthropic-only:</p>
+        <ul>
+          <li>Required <code>ANTHROPIC_API_KEY</code></li>
+          <li>No <code>baseURL</code> — could not talk to LM Studio</li>
+          <li><code>agent-run</code> silently fell back to canned captions when the model failed — looked “alive” when it wasn’t</li>
+        </ul>
+        <p>
+          Goal: <strong>one</strong> <code>createModel()</code> that speaks the OpenAI-compatible
+          chat API so the same skills work with LM Studio locally and OpenAI (or vLLM) in the cloud
+          by changing env only.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>3. What we built</h2>
+
+        <h3>3.1 Files</h3>
+        <table>
+          <thead>
+            <tr><th>File</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>server/src/skills/model.js</code></td>
+              <td>LangChain <code>ChatOpenAI</code> factory — the adapter</td>
+            </tr>
+            <tr>
+              <td><code>server/scripts/ping-model.js</code></td>
+              <td>Smoke test: one completion, expect “pong”</td>
+            </tr>
+            <tr>
+              <td><code>server/package.json</code></td>
+              <td><code>@langchain/openai</code> + script <code>model:ping</code>; package name <code>server</code> for pnpm filters</td>
+            </tr>
+            <tr>
+              <td><code>.env.example</code></td>
+              <td>Documents <code>OPENAI_BASE_URL</code> / <code>API_KEY</code> / <code>MODEL</code></td>
+            </tr>
+            <tr>
+              <td><code>server/src/server.js</code></td>
+              <td>Canned fallback gated behind <code>ALLOW_CANNED_FALLBACK=true</code>; else HTTP 502</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>3.2 The factory (behavior)</h3>
+        <ul>
+          <li>Requires <code>OPENAI_API_KEY</code> and <code>OPENAI_MODEL</code> (clear error if missing)</li>
+          <li><code>OPENAI_BASE_URL</code> defaults to <code>http://127.0.0.1:1234/v1</code> (LM Studio)</li>
+          <li>Timeout 60s, <code>maxRetries: 1</code></li>
+          <li>Skills keep calling <code>createModel().withStructuredOutput(...)</code> — no skill file imports OpenAI/Anthropic directly</li>
+        </ul>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>3A. Pseudo code</h2>
+        <p>
+          Language-agnostic sketches of what we shipped. Real code lives under
+          <code>server/src/skills/model.js</code>, <code>server/scripts/ping-model.js</code>,
+          and <code>server/src/server.js</code>.
+        </p>
+
+        <h3>A. Model adapter factory</h3>
+        <pre><code>function createModel(options = {}):
+  missing = []
+  if env.OPENAI_API_KEY is empty: missing.append("OPENAI_API_KEY")
+  if options.model is empty AND env.OPENAI_MODEL is empty:
+    missing.append("OPENAI_MODEL")
+  if missing is not empty:
+    throw Error("Missing required env: " + missing.join(", "))
+
+  return OpenAICompatibleChatClient(
+    apiKey     = env.OPENAI_API_KEY,
+    model      = options.model OR env.OPENAI_MODEL,
+    temperature = options.temperature OR 0.7,
+    timeoutMs  = 60_000,
+    maxRetries = 1,
+    baseURL    = env.OPENAI_BASE_URL OR "http://127.0.0.1:1234/v1"
+  )
+
+# Skills NEVER do:
+#   import AnthropicSDK
+#   import OpenAIVendorSDK
+# They only call createModel().</code></pre>
+
+        <h3>B. Skill using the adapter (structured output)</h3>
+        <pre><code>ContentPlanSchema = {
+  hook: string,
+  angle: string,
+  format: "reel" | "feed" | "carousel",
+  ...
+}
+
+function planContent(topic, brandGuide?):
+  model = createModel().withStructuredOutput(ContentPlanSchema)
+
+  # One LLM call; response must match the schema or the client errors
+  result = model.invoke("""
+    Plan an Instagram post for topic: {topic}
+    Brand guide: {brandGuide}
+  """)
+
+  return result   # typed object, not free-form mush
+
+# Pipeline (simplified):
+function runContentPipeline(topic):
+  plan    = planContent(topic)
+  caption = writeCaption(plan.hook, plan.angle, plan.format)
+  media   = generateMediaPrompts(plan, caption)
+  review  = reviewPost(plan, caption, media)
+  return merge(plan, caption, media, review)</code></pre>
+
+        <h3>C. Ping smoke test</h3>
+        <pre><code>function main():
+  loadDotEnv(".env.local")
+  print("Pinging model={OPENAI_MODEL} baseURL={OPENAI_BASE_URL}")
+
+  model = createModel()
+  reply = model.invoke("Reply with exactly: pong")
+
+  print("ok")
+  print("response:", reply.text.trim())
+  # success criterion: reply contains "pong"
+
+on error:
+  print("ping failed:", error.message)
+  exit(1)   # Connection refused ⇒ LM Studio local server not running</code></pre>
+
+        <h3>D. Agent-run: fail loud vs canned fallback</h3>
+        <pre><code>async function generatePostContent(topic, brand):
+  try:
+    return runContentPipeline(topic, brand)
+  catch error:
+    if env.ALLOW_CANNED_FALLBACK == "true":
+      log.warn("pipeline failed, using canned fallback", error)
+      return cannedDraft(topic)     # demo only
+    else:
+      throw error                   # default: do not fake success
+
+# HTTP handler
+POST /api/posts/:id/agent-run:
+  post = db.getPost(id)
+  try:
+    content = generatePostContent(post.topic, body.brand)
+    db.updatePost(id, content, status = "pending_approval")
+    return 200 { post, note: "Generated via LangChain skills" }
+  catch error:
+    log.error("agent-run failed", error)
+    return 502 { error: error.message }
+    # post is NOT filled with fake hook/caption</code></pre>
+
+        <h3>E. Before vs after (mental model)</h3>
+        <pre><code># BEFORE (wrong for local models)
+createModel():
+  require ANTHROPIC_API_KEY
+  return ChatAnthropic(...)          # no baseURL ⇒ no LM Studio
+
+agent-run on failure:
+  return cannedDraft(topic)          # looks successful, brain was offline
+
+# AFTER (Chapter 01)
+createModel():
+  require OPENAI_API_KEY + OPENAI_MODEL
+  return ChatOpenAI(baseURL=...)     # LM Studio OR cloud
+
+agent-run on failure:
+  if ALLOW_CANNED_FALLBACK: canned
+  else: HTTP 502                     # honest failure</code></pre>
+
+        <h3>F. Who calls whom</h3>
+        <pre><code>ping-model.js ──────────────┐
+content-planning.js ────────┤
+caption-writing.js ─────────┼──► createModel() ──► LM Studio :1234/v1
+image-reel-generation.js ───┤         │              (or api.openai.com)
+post-review.js ─────────────┘         │
+                                      ▼
+                              chat.completions
+                              (OpenAI-compatible wire protocol)
+
+# Not callers of createModel (authority / world — later):
+#   policy.can, Instagram Graph, Pexels download, React UI</code></pre>
+
+        <h3>3.3 Env contract</h3>
+        <pre><code># Chat / content skills (OpenAI-compatible)
+OPENAI_BASE_URL=http://127.0.0.1:1234/v1
+OPENAI_API_KEY=lm-studio
+OPENAI_MODEL=prism-ml/bonsai-27b   # must match LM Studio’s served id
+
+# Demo only — off by default
+# ALLOW_CANNED_FALLBACK=false</code></pre>
+        <p>
+          Swap to cloud OpenAI by pointing <code>OPENAI_BASE_URL</code> at
+          <code>https://api.openai.com/v1</code> and using a real key/model — <strong>no code change</strong>.
+        </p>
+
+        <h3>3.4 pnpm filter gotcha (fixed)</h3>
+        <p>
+          <code>pnpm --filter server</code> matches the package <strong>name</strong>, not the folder.
+          The server package was renamed from <code>instagram-agent-server</code> to <code>server</code>
+          so filters and root scripts work.
+        </p>
+        <pre><code>pnpm --filter server model:ping
+# or
+pnpm model:ping</code></pre>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>4. How to run the checkpoint</h2>
+        <ol>
+          <li>Open LM Studio; load the model named in <code>OPENAI_MODEL</code>.</li>
+          <li>Start <strong>Local Server</strong> (Developer tab) on port <code>1234</code>.</li>
+          <li>Confirm the API is up:
+            <pre style="margin:0.5rem 0 0"><code>curl http://127.0.0.1:1234/v1/models</code></pre>
+            Connection refused = server not started (the ping script cannot fix that).
+          </li>
+          <li>Run <code>pnpm --filter server model:ping</code>.</li>
+          <li><strong>Success we hit:</strong> response contains <code>pong</code>.</li>
+        </ol>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint status</strong>
+          <p style="margin:0">
+            Passed: LM Studio answered <code>pong</code> through <code>createModel()</code>.
+            Cognition door is open.
+          </p>
+        </div>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>5. Fail-loud behavior (important)</h2>
+        <table>
+          <thead>
+            <tr><th>Situation</th><th>Behavior</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Missing <code>OPENAI_MODEL</code> / key</td>
+              <td>Throw with explicit missing-var message</td>
+            </tr>
+            <tr>
+              <td>LM Studio down; ping</td>
+              <td><code>Connection error</code>, exit code 1</td>
+            </tr>
+            <tr>
+              <td>LM Studio down; <code>agent-run</code></td>
+              <td><strong>HTTP 502</strong> with error message — post not filled with fake copy</td>
+            </tr>
+            <tr>
+              <td><code>ALLOW_CANNED_FALLBACK=true</code></td>
+              <td>Old demo path: canned hook/caption on pipeline failure</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Silent canned success was removed from the default path on purpose: it taught the wrong
+          lesson (“system works”) when cognition was actually offline.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>6. Evals &amp; observability — did we need them here?</h2>
+        <p><strong>Not as full systems.</strong> Chapter 01 only needed a smoke test.</p>
+        <table>
+          <thead>
+            <tr><th></th><th>At Chapter 01</th><th>When to build properly</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Observability</strong></td>
+              <td>Ping + clear errors + 502 on agent-run</td>
+              <td>Lesson <a href="04-durable-runs.html">04</a> runs/events; <a href="10-live-monitoring.html">10</a> UI stream</td>
+            </tr>
+            <tr>
+              <td><strong>Evals</strong></td>
+              <td>Manual ping / one real agent-run after model changes</td>
+              <td>Lesson <a href="16-evals.html">16</a> golden set + policy trajectory checks</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Building a run store or eval harness before a multi-step loop exists creates throwaway
+          scaffolding. See <a href="concept-evals-observability.html">Evals &amp; observability</a>.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>7. Four notes (answer key for this layer)</h2>
+        <ul class="questions">
+          <li>
+            <strong>What problem does this layer solve?</strong>
+            Vendor-agnostic access to a chat model so skills can reason without caring about LM Studio vs cloud.
+          </li>
+          <li>
+            <strong>What is allowed to call it?</strong>
+            Skills, ping script, and (later) the agent loop — via <code>createModel()</code> only.
+          </li>
+          <li>
+            <strong>What must it never do?</strong>
+            Side effects (publish, DB policy, OAuth); hide failures behind fake content by default.
+          </li>
+          <li>
+            <strong>How do I observe and test it?</strong>
+            <code>model:ping</code>; dead-server connection errors; agent-run 502 without fallback.
+          </li>
+        </ul>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>8. What’s next</h2>
+        <ol>
+          <li><a href="02-structured-skill.html">02 Structured skill</a> — Zod contracts end-to-end on LM Studio (skills already exist; own the pattern).</li>
+          <li><a href="03-agent-loop.html">03 Agent loop</a> — plan → act → observe + budgets.</li>
+          <li><a href="04-durable-runs.html">04 Durable runs</a> — first real observability.</li>
+          <li>Then authority: <a href="06-policy-gate.html">06 Policy</a> → HITL → operator auth (before real publish).</li>
+        </ol>
+
+        <div class="callout notes">
+          <strong class="label">Do not skip ahead to Instagram</strong>
+          <p style="margin:0">
+            Cognition works. Product side effects still wait behind policy and operator auth.
+            Localhost-only until that layer lands.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

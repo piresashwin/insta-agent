@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture map — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="architecture"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Reference</p>
+        <h1>Architecture map</h1>
+        <p class="lead">
+          Optimal shape for this product: harness-driven agent + durable orchestrator +
+          React for Instagram connect and run monitoring.
+        </p>
+
+        <div class="arch">flowchart TB
+  clients[Clients: Harness MCP + React UI]
+  interface[Interface: MCP + REST + SSE]
+  orch[Orchestrator: state · policy · runs]
+  agent[Agent loop]
+  model[Model adapter]
+  tools[Skills / tools]
+  policy[Policy gate]
+  world[World: IG · media · files]
+  memory[Memory + evals]
+
+  clients --> interface --> orch
+  orch --> agent
+  agent --> model
+  agent --> tools
+  tools --> policy --> world
+  orch --> memory
+  orch -->|events| clients</div>
+
+        <h2>Layer ownership</h2>
+        <table>
+          <thead>
+            <tr><th>Layer</th><th>Owns</th><th>Must never</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Clients</strong></td>
+              <td>Human steering &amp; display</td>
+              <td>Own business rules or secrets</td>
+            </tr>
+            <tr>
+              <td><strong>Interface</strong></td>
+              <td>Stable contracts for any client</td>
+              <td>Bypass policy for convenience</td>
+            </tr>
+            <tr>
+              <td><strong>Orchestrator</strong></td>
+              <td>Truth, transitions, run records</td>
+              <td>Pretend to be the LLM</td>
+            </tr>
+            <tr>
+              <td><strong>Agent loop</strong></td>
+              <td>Plan / act / observe within budgets</td>
+              <td>Call Instagram without a gate</td>
+            </tr>
+            <tr>
+              <td><strong>Model adapter</strong></td>
+              <td>Vendor-agnostic completions</td>
+              <td>Leak into every skill file</td>
+            </tr>
+            <tr>
+              <td><strong>Skills</strong></td>
+              <td>Structured capabilities</td>
+              <td>Own DB schema or OAuth</td>
+            </tr>
+            <tr>
+              <td><strong>Policy</strong></td>
+              <td>Allow / deny side effects</td>
+              <td>Trust model “intent” alone</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Dual client surface</h2>
+        <div class="card-grid two">
+          <div class="card">
+            <h3>MCP (any harness)</h3>
+            <p>Cursor, Claude Code, scripts — interact with skills and inspect runs.</p>
+          </div>
+          <div class="card">
+            <h3>React (product ops)</h3>
+            <p>Connect Instagram, approve drafts, monitor live agent activity.</p>
+          </div>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Repo mapping</strong>
+          <p style="margin:0">
+            Today: Express + SQLite + LangChain skills + MCP skills server are the right
+            instincts. Gaps: OpenAI-compatible model adapter, run events, wired UI,
+            real OAuth/media/publish behind policy.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

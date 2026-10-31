@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>04 · Durable runs — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="04"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 1 · Lesson 04</p>
+        <h1>Durable runs</h1>
+        <p class="lead">Observability foundation: every invocation gets a <code>run_id</code> and append-only events.</p>
+        <div class="meta-row">
+          <span class="chip">Time · 1 day</span>
+          <span class="chip accent">Observability</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Run statuses: <code>running | succeeded | failed | needs_human</code></li>
+            <li>Append-only event log vs mutable “current state” only</li>
+            <li>Why UI monitoring is impossible without this</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Tables: <code>runs</code>, <code>run_events</code> (type, payload, ts)</li>
+            <li>Every model/tool call appends an event</li>
+            <li><code>GET /api/runs/:id</code> returns the full timeline</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">After a run, reconstruct the exact tool sequence from the DB alone — no console scrollback required.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            Tables <code>runs</code> / <code>run_events</code>, helpers in <code>server/src/runs.js</code>,
+            <code>runAgent({ onEvent })</code>, <code>GET /api/runs/:id</code>.
+            <code>pnpm --filter server agent:ping</code> writes a timeline you can fetch from the API.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Detailed lesson</strong>
+          <p style="margin:0">
+            Full explanation (ephemeral vs durable, schema, loop wiring, API, example timeline):
+            <a href="concept-durable-runs.html">Durable runs (deep dive)</a>.
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Core principles — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="principles"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Reference</p>
+        <h1>Core principles</h1>
+        <p class="lead">
+          These rules stay true no matter which framework, model, or product domain you use.
+          Revisit this page whenever a design choice feels fuzzy.
+        </p>
+
+        <table>
+          <thead>
+            <tr><th>Principle</th><th>Meaning</th><th>If ignored</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Cognition ≠ authority</strong></td>
+              <td>Model proposes; orchestrator authorizes side effects</td>
+              <td>Unsupervised publish / delete / spend</td>
+            </tr>
+            <tr>
+              <td><strong>Durable state outside the model</strong></td>
+              <td>Posts, runs, tokens live in DB/files</td>
+              <td>No audit; “forgot” mid-run</td>
+            </tr>
+            <tr>
+              <td><strong>Structured I/O</strong></td>
+              <td>Tools and skills use schemas</td>
+              <td>Fragile free-text parsing</td>
+            </tr>
+            <tr>
+              <td><strong>Small tools, clear contracts</strong></td>
+              <td>One capability per tool</td>
+              <td>Untestable god-tools</td>
+            </tr>
+            <tr>
+              <td><strong>Human gates on irreversible acts</strong></td>
+              <td>Publish, pay, delete, OAuth need approval/policy</td>
+              <td>Silent production damage</td>
+            </tr>
+            <tr>
+              <td><strong>Budgeted autonomy</strong></td>
+              <td>Max steps, tokens, time, revisions</td>
+              <td>Infinite loops / cost blowups</td>
+            </tr>
+            <tr>
+              <td><strong>Observable runs</strong></td>
+              <td>Every step logged and streamable</td>
+              <td>Cannot monitor or debug</td>
+            </tr>
+            <tr>
+              <td><strong>Swappable model</strong></td>
+              <td>OpenAI-compatible adapter</td>
+              <td>Vendor lock-in; no LM Studio</td>
+            </tr>
+            <tr>
+              <td><strong>Harness-agnostic interface</strong></td>
+              <td>MCP and/or stable HTTP</td>
+              <td>Only works in one IDE</td>
+            </tr>
+            <tr>
+              <td><strong>Memory is designed</strong></td>
+              <td>Brand / working / episodic layers</td>
+              <td>Hallucinated “memory”</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Agent loop in one line</h2>
+        <pre><code>goal → plan → choose tool → act → observe → update → repeat
+         ↑______________________________________________|</code></pre>
+        <p>Until: done, blocked, needs human, or budget exhausted.</p>
+
+        <h2>Patterns to name out loud</h2>
+        <ul>
+          <li><strong>Tool gateway</strong> — all side effects behind authz + logging</li>
+          <li><strong>Status machine</strong> — explicit legal transitions</li>
+          <li><strong>Approval as state</strong> — not a prompt that says “be careful”</li>
+          <li><strong>Idempotency keys</strong> — especially for publish/upload</li>
+          <li><strong>Compaction</strong> — summarize old steps so context does not explode</li>
+          <li><strong>Escalation</strong> — uncertainty → <code>needs_human</code></li>
+        </ul>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

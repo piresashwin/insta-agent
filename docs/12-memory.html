@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>12 · Memory layers — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="12"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 4 · Lesson 12</p>
+        <h1>Memory layers</h1>
+        <p class="lead">Memory is designed and injected — models do not magically remember your brand across sessions.</p>
+        <div class="meta-row"><span class="chip">Time · 1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Instruction / working / brand / episodic layers</li>
+            <li>File-based brand knowledge vs vector RAG (start with files)</li>
+            <li>Injection at run start by the orchestrator</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Create <code>content/BRAND.md</code> + <code>config/brand.json</code></li>
+            <li>Orchestrator loads and prepends them on every run</li>
+            <li>Stub <code>learn/posts.json</code> for post-publish append (filled in Step 15)</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Edit brand voice → next run’s caption tone changes with no fine-tuning.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

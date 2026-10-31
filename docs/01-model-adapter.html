@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>01 · Model adapter — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="01"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 1 · Lesson 01</p>
+        <h1>Model adapter</h1>
+        <p class="lead">One factory behind OpenAI-compatible chat completions. Skills never import a vendor SDK directly.</p>
+        <div class="meta-row">
+          <span class="chip">Time · ½–1 day</span>
+          <span class="chip accent">LM Studio</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li><code>baseURL</code> + <code>apiKey</code> + <code>model</code></li>
+            <li>OpenAI wire protocol as lingua franca (LM Studio, vLLM, cloud)</li>
+            <li>Timeouts, temperature, hard fail when unreachable</li>
+            <li>Why Anthropic-only <code>model.js</code> blocks local models</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Single <code>createModel()</code> using OpenAI-compatible client (LangChain <code>ChatOpenAI</code> or official OpenAI SDK).</li>
+            <li>Env example:
+              <pre style="margin:0.6rem 0 0"><code>OPENAI_BASE_URL=http://localhost:1234/v1
+OPENAI_API_KEY=lm-studio
+OPENAI_MODEL=your-local-model</code></pre>
+            </li>
+            <li>Tiny script: ping the model with one completion.</li>
+            <li>Optional: same env vars pointed at cloud OpenAI — no code change.</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Same code talks to LM Studio and (optionally) cloud by changing env only. Missing server → clear error, not silent fake success.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            Implementation write-up (what we shipped, env, ping, fail-loud, pnpm filter):
+            <a href="concept-cognition-model-adapter.html">Cognition: the model adapter</a>.
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

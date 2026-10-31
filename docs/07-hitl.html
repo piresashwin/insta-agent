@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>07 · HITL approvals — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="07"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 2 · Lesson 07</p>
+        <h1>HITL approvals</h1>
+        <p class="lead">Approval is a state machine, not a prompt. Humans revise with comments; max edits are enforced.</p>
+        <div class="meta-row"><span class="chip">Time · 1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Approve vs request-changes vs needs_revision</li>
+            <li>Iteration history as product data</li>
+            <li>When the agent is allowed to re-run</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>approve</code> / <code>request-changes</code> + <code>iterations</code> rows</li>
+            <li>Max 3 revisions → <code>needs_revision</code></li>
+            <li>Agent re-run only from <code>changes_requested</code> (or explicit restart)</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Full loop in DB: draft → request changes → new run → approve.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            Max <code>MAX_REVISIONS</code> (3) → <code>needs_revision</code>.
+            Agent-run only from <code>draft</code> / <code>changes_requested</code>.
+            <code>POST …/restart</code> → <code>draft</code>.
+            <code>GET …/iterations</code> lists comments.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify (curl)</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap"># After agent-run left status pending_approval:
+curl -s -X POST localhost:3001/api/posts/ID/request-changes \
+  -H 'Content-Type: application/json' \
+  -d '{"author":{"id":"local-dev","name":"Local"},"comment":"sharper hook"}'
+# → changes_requested (or needs_revision on 3rd)
+
+curl -s -X POST localhost:3001/api/posts/ID/agent-run -H 'Content-Type: application/json' -d '{}'
+# → pending_approval again
+
+curl -s -X POST localhost:3001/api/posts/ID/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"actor":{"id":"local-dev","name":"Local"}}'
+# → approved
+
+curl -s localhost:3001/api/posts/ID/iterations</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

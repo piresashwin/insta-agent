@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Policy vs operator auth — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="policy-auth"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Sub-chapter</p>
+        <h1>Policy gates vs operator auth</h1>
+        <p class="lead">
+          Two different questions. Mixing them up produces systems that feel “approved”
+          but are still wide open — or locked down for the wrong reason.
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Authority layer</span>
+          <span class="chip warn">Required for safe systems</span>
+          <span class="chip">Pairs with Lessons 06 · 07 · 14 · 17</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            <strong>Policy gates</strong> answer: <em>Is this transition / action legal?</em><br />
+            <strong>Operator auth</strong> answers: <em>Who is allowed to request it?</em>
+          </p>
+        </div>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>1. Why this split exists</h2>
+        <p>
+          An agentic product has <strong>cognition</strong> (the model proposes) and
+          <strong>authority</strong> (something decides what may happen in the world).
+          Authority itself has two sub-questions:
+        </p>
+
+        <table>
+          <thead>
+            <tr><th></th><th>Policy gate</th><th>Operator auth</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Question</strong></td>
+              <td>Is this <em>action</em> allowed given system state + rules?</td>
+              <td>Is this <em>principal</em> allowed to ask?</td>
+            </tr>
+            <tr>
+              <td><strong>Inputs</strong></td>
+              <td>Resource state, action name, actor <em>role</em> (agent vs human), budgets</td>
+              <td>Identity (user/session/token), groups, permissions</td>
+            </tr>
+            <tr>
+              <td><strong>Example allow</strong></td>
+              <td><code>approved + media_ready → publish</code> is a legal transition</td>
+              <td>User <code>ashwin</code> is an operator on this workspace</td>
+            </tr>
+            <tr>
+              <td><strong>Example deny</strong></td>
+              <td><code>draft → published</code> is illegal even for an admin</td>
+              <td>Anonymous caller cannot hit <code>POST /approve</code></td>
+            </tr>
+            <tr>
+              <td><strong>Failure mode if missing</strong></td>
+              <td>Authenticated users (or the agent) can skip the lifecycle</td>
+              <td>Anyone who can reach the API can approve / publish / run agents</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout notes">
+          <strong class="label">Your repo today</strong>
+          <p style="margin:0">
+            You have a <strong>real policy gate</strong>
+            (<code>server/src/policy.ts</code> — role allowlists, durable
+            <code>policy_deny</code> — stacked on the orchestrator status machine (Lesson 05),
+            and still <strong>no operator auth</strong>. Approving a post proves policy + edge
+            allowed the request — not that a known human identity made it.
+            Full Lesson 06 map:
+            <a href="concept-policy-gate.html">Policy gate (deep dive)</a>.
+          </p>
+        </div>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>2. The request path (both checks, every time)</h2>
+        <pre><code>Client (React / MCP / curl)
+   │
+   │  Authorization: Bearer …   (or session cookie / CF Access identity)
+   ▼
+┌──────────────────────────┐
+│ 1. OPERATOR AUTH         │  Who is this?
+│    authenticate + authorize│  Are they allowed to call this route?
+└────────────┬─────────────┘
+             │ principal = { id, roles[] }
+             ▼
+┌──────────────────────────┐
+│ 2. ORCHESTRATOR          │  Load post / run / account
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 3. POLICY GATE           │  Is (principal.role, action, resource.state)
+│    can(actor, action, …) │  a legal transition under budgets?
+└────────────┬─────────────┘
+             │ allow
+             ▼
+         Side effect / state change
+             │
+             ▼
+         Audit log (who + what + why allowed)</code></pre>
+
+        <p>
+          Order matters: <strong>authenticate first</strong>, then policy.
+          Policy should see a real <code>actor</code> (<code>user:ashwin</code> or
+          <code>agent:run_abc</code>), not “anonymous trusted localhost forever” in production.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>3. Policy gates in depth</h2>
+        <h3>3.1 What a policy gate is</h3>
+        <p>
+          A small, boring, deterministic function (or module) that answers allow/deny
+          <em>before</em> side effects. It is not a system prompt. It is not “the model
+          promised to be careful.”
+        </p>
+        <pre><code>policy.can({
+  actor:  { type: "human" | "agent", id, roles },
+  action: "posts.approve" | "posts.publish" | "media.fetch" | …,
+  resource: { type: "post", id, status, revisionCount, accountId },
+  context:  { runId, maxRevisions: 3 }
+}) → { allow: boolean, reason: string }</code></pre>
+
+        <h3>3.2 What belongs in policy</h3>
+        <ul>
+          <li><strong>Lifecycle legality</strong> — which status transitions exist</li>
+          <li><strong>Role capabilities</strong> — agent may draft; only human (or approved workflow) may publish</li>
+          <li><strong>Budgets</strong> — max revisions, max agent steps, rate limits per account</li>
+          <li><strong>Resource scope</strong> — this operator may only act on posts for accounts they own (once multi-tenant)</li>
+          <li><strong>Irreversible action lists</strong> — publish, delete, rotate secrets, disconnect OAuth</li>
+        </ul>
+
+        <h3>3.3 What does <em>not</em> belong in policy</h3>
+        <ul>
+          <li>Password verification / session cookies (that’s authn)</li>
+          <li>Creative quality (“is this caption good?”) — that’s review skills / evals / HITL judgment</li>
+          <li>Instagram Graph retries — that’s the IG adapter</li>
+        </ul>
+
+        <h3>3.4 Best practices — policy</h3>
+        <table>
+          <thead>
+            <tr><th>Practice</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>One gateway</strong></td>
+              <td>Every mutating tool and HTTP route calls the same <code>policy.can</code>. No “special case” publish in MCP that skips it.</td>
+            </tr>
+            <tr>
+              <td><strong>Explicit allowlist of transitions</strong></td>
+              <td>Encode <code>VALID_TRANSITIONS</code>; deny by default. Unknown action = deny.</td>
+            </tr>
+            <tr>
+              <td><strong>Deny with a stable reason code</strong></td>
+              <td><code>ILLEGAL_TRANSITION</code>, <code>ROLE_FORBIDDEN</code>, <code>BUDGET_EXCEEDED</code> — for UI, logs, and evals.</td>
+            </tr>
+            <tr>
+              <td><strong>Log every deny and every irreversible allow</strong></td>
+              <td>Audit trail: actor, action, resource id, before/after status, request id.</td>
+            </tr>
+            <tr>
+              <td><strong>Treat the agent as a first-class actor</strong></td>
+              <td><code>actor.type = "agent"</code> with a narrow allowlist (draft, fetch media prompts). Never inherit “admin.”</td>
+            </tr>
+            <tr>
+              <td><strong>Idempotency for irreversible actions</strong></td>
+              <td>Publish with an idempotency key so retries don’t double-post even when policy allows twice.</td>
+            </tr>
+            <tr>
+              <td><strong>Unit-test the matrix</strong></td>
+              <td>Table-driven tests: (status, action, actor) → allow/deny. This is a <em>policy eval</em>.</td>
+            </tr>
+            <tr>
+              <td><strong>Keep policy pure</strong></td>
+              <td>No network calls inside <code>can()</code>. Pass state in; return decision out. Easy to test and reason about.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>3.5 Example transition matrix (Instagram posts)</h3>
+        <table>
+          <thead>
+            <tr><th>From → To / Action</th><th>Agent</th><th>Human operator</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Create draft / run planning skills</td><td>Allow</td><td>Allow</td></tr>
+            <tr><td><code>draft → pending_approval</code></td><td>Allow (after successful run)</td><td>Allow</td></tr>
+            <tr><td><code>pending_approval → approved</code></td><td><strong>Deny</strong></td><td>Allow</td></tr>
+            <tr><td><code>pending_approval → changes_requested</code></td><td>Deny</td><td>Allow</td></tr>
+            <tr><td><code>approved → media_*</code> / fetch stock</td><td>Allow (if gated)</td><td>Allow</td></tr>
+            <tr><td><code>* → published</code> / Graph publish</td><td><strong>Deny</strong></td><td>Allow only if <code>approved</code> + media ready</td></tr>
+            <tr><td><code>draft → published</code></td><td>Deny</td><td><strong>Deny</strong> (illegal even for admin)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Notice: even a fully authenticated admin cannot jump <code>draft → published</code>
+          if policy forbids it. Auth answers who; policy answers whether the machine state allows it.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>4. Operator auth in depth</h2>
+        <h3>4.1 Authn vs authz (inside “operator auth”)</h3>
+        <ul>
+          <li><strong>Authentication (authn)</strong> — prove identity: “this request is Ashwin.”</li>
+          <li><strong>Authorization (authz)</strong> — grant rights: “Ashwin may operate workspace X.”</li>
+        </ul>
+        <p>
+          People say “auth” for both. In design docs, keep them separate.
+          Policy gates often consume the <em>result</em> of authz (roles) but do not replace login.
+        </p>
+
+        <h3>4.2 What operator auth protects</h3>
+        <ul>
+          <li>Dashboard routes (approve, settings, connect Instagram)</li>
+          <li>Orchestrator HTTP API</li>
+          <li>Optionally MCP: shared secret, OAuth for remote MCP, or local-only stdio (stdio MCP is already “whoever runs the process”)</li>
+        </ul>
+
+        <h3>4.3 Best practices — operator auth</h3>
+        <table>
+          <thead>
+            <tr><th>Practice</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Never expose the API without a gate in prod</strong></td>
+              <td>Localhost-only is fine for learning. Public URL without auth = anyone can publish with your tokens.</td>
+            </tr>
+            <tr>
+              <td><strong>Prefer a battle-tested identity layer early</strong></td>
+              <td>Options: Cloudflare Access in front of the app, Auth.js / Clerk / WorkOS, or Meta/Google OAuth for operators. Don’t invent crypto sessions on day one.</td>
+            </tr>
+            <tr>
+              <td><strong>Short-lived credentials</strong></td>
+              <td>Session cookies (HttpOnly, Secure, SameSite) or short JWTs with refresh. Rotate on logout.</td>
+            </tr>
+            <tr>
+              <td><strong>Bind actions to a stable user id</strong></td>
+              <td>Store <code>approved_by</code>, <code>requested_by</code> on iterations — audit needs a person, not “UI.”</td>
+            </tr>
+            <tr>
+              <td><strong>Least privilege roles</strong></td>
+              <td>e.g. <code>viewer</code> (read queue), <code>editor</code> (request changes), <code>publisher</code> (approve + publish), <code>admin</code> (OAuth + secrets).</td>
+            </tr>
+            <tr>
+              <td><strong>Separate operator identity from Instagram identity</strong></td>
+              <td>Logging into the dashboard ≠ connecting an IG Business account. Different OAuth apps / token stores.</td>
+            </tr>
+            <tr>
+              <td><strong>Defense in depth for MCP</strong></td>
+              <td>Local stdio: OK for single-user machines. Remote MCP: require auth. Still run tool calls through policy.</td>
+            </tr>
+            <tr>
+              <td><strong>Rate-limit authenticated routes</strong></td>
+              <td>Auth stops strangers; it doesn’t stop a stolen session from spamming publish.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.4 Practical implementation paths (pick by stage)</h3>
+        <div class="card-grid two">
+          <div class="card">
+            <h3>Learning / local (now)</h3>
+            <ul>
+              <li>Bind API to <code>127.0.0.1</code></li>
+              <li>Optional shared <code>OPERATOR_TOKEN</code> header for non-browser clients</li>
+              <li>Document: “not internet-safe”</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Single-operator prod (simple)</h3>
+            <ul>
+              <li>Cloudflare Access (email allowlist) in front of UI + API</li>
+              <li>Or HTTP Basic behind TLS (acceptable only for tiny personal tools)</li>
+              <li>Pass CF Access identity headers into orchestrator as <code>actor</code></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Multi-user product</h3>
+            <ul>
+              <li>Proper IdP (OIDC) + sessions</li>
+              <li>Workspace membership table</li>
+              <li>RBAC mapped into <code>policy.can</code> roles</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Agent / MCP callers</h3>
+            <ul>
+              <li>Issue a scoped API token per harness (<code>agent:cursor</code>)</li>
+              <li>Token role = agent allowlist only</li>
+              <li>Never give harness tokens the <code>publisher</code> role</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>5. How they work together (worked example)</h2>
+        <p><strong>Scenario:</strong> Someone calls <code>POST /api/posts/:id/publish</code>.</p>
+        <ol>
+          <li><strong>Operator auth:</strong> No session → <code>401 Unauthorized</code>. Stop.</li>
+          <li><strong>Operator authz:</strong> User is <code>viewer</code> only → <code>403 Forbidden</code>. Stop.</li>
+          <li><strong>Policy:</strong> User is <code>publisher</code>, but post status is <code>draft</code> → <code>409</code> / <code>ILLEGAL_TRANSITION</code>. Stop.</li>
+          <li><strong>Policy:</strong> Status is <code>approved</code> + media ready → allow.</li>
+          <li><strong>Adapter:</strong> Graph publish with idempotency key; on success set <code>published</code>; write audit row <code>ashwin published post_123</code>.</li>
+        </ol>
+        <p>
+          Same call from the <strong>agent</strong> with a valid agent token still dies at step 3/role:
+          agent role cannot <code>posts.publish</code>, regardless of status.
+        </p>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>6. Common mistakes</h2>
+        <table>
+          <thead>
+            <tr><th>Mistake</th><th>Why it hurts</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>“We have approve buttons, so we’re secure.”</td>
+              <td>Buttons without operator auth are UI theater on an open API.</td>
+            </tr>
+            <tr>
+              <td>“We put Cloudflare Access on the UI only.”</td>
+              <td>Attackers hit the API directly. Protect both or make the API private.</td>
+            </tr>
+            <tr>
+              <td>“The system prompt says never publish.”</td>
+              <td>Not a control. Policy + auth are controls.</td>
+            </tr>
+            <tr>
+              <td>“Admin bypasses the status machine.”</td>
+              <td>Breaks invariants and evals; break-glass should be explicit, logged, rare.</td>
+            </tr>
+            <tr>
+              <td>“MCP and HTTP have different publish rules.”</td>
+              <td>Harness shopping for the weak door. One policy module.</td>
+            </tr>
+            <tr>
+              <td>Storing Instagram tokens as “the user session.”</td>
+              <td>Confuses product login with platform OAuth; nightmare to revoke correctly.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>7. Where this sits in the course</h2>
+        <ul>
+          <li><a href="00-mental-model.html">00 Mental model</a> — cognition vs authority (this sub-chapter splits authority)</li>
+          <li><a href="06-policy-gate.html">06 Policy gate</a> — implement <code>policy.can</code></li>
+          <li><a href="07-hitl.html">07 HITL</a> — human transitions that policy allows only for humans</li>
+          <li><a href="11-mcp-harness.html">11 MCP</a> — same policy; scoped harness identity</li>
+          <li><a href="14-instagram-oauth.html">14 Instagram OAuth</a> — platform auth, not operator auth</li>
+          <li><a href="17-hardening.html">17 Hardening</a> — put Access / IdP in front; threat-model both gaps</li>
+          <li><a href="concept-safety.html">Safety &amp; compliance</a> — broader control list</li>
+        </ul>
+
+        <!-- ───────────────────────────────────────────── -->
+        <h2>8. Checkpoint</h2>
+        <div class="callout check">
+          <strong class="label">You understand this chapter when you can say</strong>
+          <ol style="margin:0">
+            <li>Policy without auth → legal transitions callable by strangers.</li>
+            <li>Auth without policy → known users can still skip the lifecycle / publish drafts.</li>
+            <li>Safe systems require <strong>both</strong>, plus an audit log that records <em>who</em> and <em>whether it was legal</em>.</li>
+          </ol>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Exercise</strong>
+          <ul class="questions">
+            <li>For <code>POST /approve</code> on your API today: what does auth say? What does policy say?</li>
+            <li>Write one deny reason that is <em>only</em> auth (<code>401/403</code>) and one that is <em>only</em> policy (<code>ILLEGAL_TRANSITION</code>).</li>
+            <li>Pick your stage (local / single-operator / multi-user) and name the auth approach you’ll use before public deploy.</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Suggested allow/never (updated)</strong>
+          <p style="margin:0">
+            The LLM may draft structured content via skills.
+            It may never publish or approve.
+            Humans may approve/publish only when authenticated <em>and</em> the policy transition is legal.
+            Until operator auth exists, the API stays localhost-only.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

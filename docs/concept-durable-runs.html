@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Durable runs deep dive — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="durable-runs"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Detailed lesson · Chapter 04</p>
+        <h1>Durable runs</h1>
+        <p class="lead">
+          How we turn ephemeral console traces into an append-only database timeline —
+          so you can reconstruct what the agent did without scrollback, and so a React
+          monitor can exist later.
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Week 1 · Lesson 04</span>
+          <span class="chip">Observability</span>
+          <span class="chip">Built in this repo</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            A <strong>run</strong> is one agent (or pipeline) invocation.
+            <strong>Events</strong> are append-only facts about that invocation.
+            Console logs are for humans in the moment; durable runs are for the system forever.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>1. Where you are in the course</h2>
+        <table>
+          <thead>
+            <tr><th>Chapter</th><th>What you had</th><th>Gap</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>01–02</td>
+              <td>Model + structured skills</td>
+              <td>No multi-step story</td>
+            </tr>
+            <tr>
+              <td>03</td>
+              <td>Agent loop that <code>console.log</code>s steps</td>
+              <td>Close the terminal → history gone</td>
+            </tr>
+            <tr>
+              <td><strong>04</strong></td>
+              <td>Same loop + SQLite timeline</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>10 (later)</td>
+              <td>React Activity panel</td>
+              <td>Needs <code>run_id</code> + events to poll/stream</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Your successful <code>agent:ping</code> already showed cognition working.
+          Chapter 04 answers: <em>can we prove that from the database alone?</em>
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>2. The problem (ephemeral vs durable)</h2>
+        <pre><code># Ephemeral (Chapter 03 only)
+[agent] step 1 tool=content_planning ...
+[agent] step 1 observe ok ...
+[agent] step 2 tool=finish ...
+[agent] finished in 2 step(s)
+
+# Close the terminal → gone
+# React cannot read it
+# You cannot compare run #1 vs run #7 next week</code></pre>
+        <p>
+          <strong>Durable</strong> means: assign a <code>run_id</code>, append each step as an event,
+          update a small “current status” row when done. Then:
+        </p>
+        <pre><code>GET /api/runs/1
+→ { run: { status: "succeeded", … }, events: [ … ] }</code></pre>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>3. Two kinds of state</h2>
+        <table>
+          <thead>
+            <tr><th>Kind</th><th>Table</th><th>Changes how?</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Current state</strong></td>
+              <td><code>runs</code></td>
+              <td>Updated in place (<code>running</code> → <code>succeeded</code>)</td>
+              <td>Quick answer: is it done? failed?</td>
+            </tr>
+            <tr>
+              <td><strong>Event log</strong></td>
+              <td><code>run_events</code></td>
+              <td><strong>Append only</strong> — never edit old rows</td>
+              <td>Replay the exact tool sequence</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout notes">
+          <strong class="label">Why append-only?</strong>
+          <p style="margin:0">
+            If you only store the final draft, you lose retries, bad <code>finish</code> attempts,
+            and “why did this take 4 steps?”. Events are the flight recorder; the run row is the status light.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>4. Schema (what we built)</h2>
+        <h3>4.1 <code>runs</code></h3>
+        <pre><code>runs
+  id, post_id?, goal, kind ('agent'|'pipeline'),
+  status ('running'|'succeeded'|'failed'|'needs_human'),
+  model, error?, started_at, finished_at</code></pre>
+
+        <h3>4.2 <code>run_events</code></h3>
+        <pre><code>run_events
+  id, run_id, seq, type, payload (JSON text), created_at
+
+type examples:
+  status       { status, error? }
+  decision     { step, tool, thought, args }
+  observation  { step, ok, tool?, data?|error?|draft? }
+  error        { step?, error }</code></pre>
+        <p>
+          <code>seq</code> is 1, 2, 3… within a run so order is unambiguous even if clocks skew.
+        </p>
+
+        <h3>4.3 Payload compaction</h3>
+        <p>
+          Full plan JSON can be large. Helpers store a compact form for observations
+          (field keys + short preview) so SQLite stays readable. The live agent still
+          uses full data in memory for the next model step.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>5. How it plugs into the agent loop</h2>
+        <p>Chapter 03 loop gained an optional hook:</p>
+        <pre><code>runAgent({
+  goal, topic,
+  onEvent: ({ type, payload }) => { … }
+})</code></pre>
+        <p>Inside the loop, after each decision / observation:</p>
+        <pre><code>emit('decision', { step, tool, thought, args })
+emit('observation', { step, ok, tool, data|error|draft })</code></pre>
+        <p><strong>Who calls what (same as Ch.03, plus persistence):</strong></p>
+        <pre><code>agent-ping.js
+  createRun(...)                    → runs row status=running
+  runAgent({ onEvent })             → model chooses, loop calls tools
+       onEvent → appendEvent(...)   → run_events rows
+  completeRun(..., 'succeeded')     → runs.status + final status event</code></pre>
+        <p>
+          The model still does not write to the DB.
+          The loop still calls tools.
+          <strong>Your script / orchestrator</strong> writes runs and events.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>6. Code map (this repo)</h2>
+        <table>
+          <thead>
+            <tr><th>File</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>server/src/db.js</code></td>
+              <td>Creates <code>runs</code> + <code>run_events</code> tables</td>
+            </tr>
+            <tr>
+              <td><code>server/src/runs.js</code></td>
+              <td><code>createRun</code>, <code>appendEvent</code>, <code>completeRun</code>, <code>getRunWithEvents</code>, <code>compactPayload</code></td>
+            </tr>
+            <tr>
+              <td><code>server/src/agent/loop.js</code></td>
+              <td><code>onEvent</code> emissions (decision / observation / error)</td>
+            </tr>
+            <tr>
+              <td><code>server/scripts/agent-ping.js</code></td>
+              <td>Creates a run, wires <code>onEvent</code>, prints timeline</td>
+            </tr>
+            <tr>
+              <td><code>server/src/server.js</code></td>
+              <td><code>GET /api/runs</code>, <code>GET /api/runs/:id</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>7. Example timeline (real shape)</h2>
+        <p>After a successful 2-step agent run you get something like:</p>
+        <pre><code>run_id=1  status=succeeded  events=6
+
+#1 status       { status: "running" }
+#2 decision     { step: 1, tool: "content_planning", args: { topic: "…" } }
+#3 observation  { step: 1, ok: true, tool: "content_planning", data: { _keys: […] } }
+#4 decision     { step: 2, tool: "finish", args: { draft: … } }
+#5 observation  { step: 2, ok: true, tool: "finish", draft: { hook, format, … } }
+#6 status       { status: "succeeded", error: null }</code></pre>
+        <p>
+          That is the same story as the console, reconstructed from SQLite —
+          the Chapter 04 checkpoint.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>8. API</h2>
+        <pre><code>GET /api/runs              → { runs: [ … recent … ] }
+GET /api/runs?post_id=3    → runs for one post (when wired)
+GET /api/runs/:id          → { run, events: [ … ordered by seq … ] }</code></pre>
+        <pre><code># Try after agent:ping
+curl http://localhost:3001/api/runs/1</code></pre>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>9. How to smoke-test</h2>
+        <ol>
+          <li>LM Studio up with your model.</li>
+          <li><code>pnpm --filter server agent:ping</code></li>
+          <li>Note <code>run_id=N</code> and the printed timeline.</li>
+          <li>Start the API: <code>pnpm --filter server dev</code></li>
+          <li><code>curl http://localhost:3001/api/runs/N</code> — same sequence, no terminal required.</li>
+        </ol>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>10. What this layer must never do</h2>
+        <ul>
+          <li>Rewrite or delete old events (“fix” history)</li>
+          <li>Replace the <code>posts</code> table as source of truth for captions</li>
+          <li>Store raw secrets / API keys in payloads</li>
+          <li>Imply approval or publish — runs explain cognition; policy/HITL still gate the world</li>
+        </ul>
+        <p>
+          <code>skill_runs</code> (older stub table) is not the Ch.04 design.
+          Prefer <code>runs</code> + <code>run_events</code>.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>11. How this enables later chapters</h2>
+        <pre><code>Ch.04  durable events in SQLite
+         ↓
+Ch.10  React polls or SSE-streams GET /api/runs/:id
+         ↓
+       “Activity” panel: step 1 content_planning, step 2 finish…</code></pre>
+        <p>
+          Evals (Ch.16) can also assert over stored trajectories:
+          “never called publish,” “always finished within N steps.”
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>12. Four notes (answer key)</h2>
+        <ul class="questions">
+          <li>
+            <strong>What problem does this layer solve?</strong>
+            Make agent behavior inspectable after the fact and usable by a UI.
+          </li>
+          <li>
+            <strong>What is allowed to call it?</strong>
+            Scripts / orchestrator wrapping <code>runAgent</code> or pipelines (<code>createRun</code> + <code>onEvent</code>).
+          </li>
+          <li>
+            <strong>What must it never do?</strong>
+            Mutate past events; hold product approval; store secrets in the clear.
+          </li>
+          <li>
+            <strong>How do I observe and test it?</strong>
+            <code>agent:ping</code> + <code>GET /api/runs/:id</code> — match console steps to event seq.
+          </li>
+        </ul>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>13. What’s next</h2>
+        <ol>
+          <li>Optionally emit the same events from <code>runContentPipeline</code> / <code>agent-run</code>.</li>
+          <li>Link <code>post_id</code> when the UI creates posts then runs the agent.</li>
+          <li>Week 2+: policy / HITL; Week 3: live monitor (Ch.10) on top of these events.</li>
+        </ol>
+
+        <div class="callout learn">
+          <strong class="label">Related</strong>
+          <p style="margin:0">
+            Short card: <a href="04-durable-runs.html">04 Durable runs</a> ·
+            Prior: <a href="concept-agent-loop.html">Agent loop</a> ·
+            Concepts: <a href="concept-evals-observability.html">Evals &amp; observability</a>
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

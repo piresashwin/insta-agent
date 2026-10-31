@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>17 · Hardening — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="17"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 5 · Lesson 17</p>
+        <h1>Hardening</h1>
+        <p class="lead">Close the loop: threat model, redaction, ops hygiene. Claim “safe &amp; compliant” only after this.</p>
+        <div class="meta-row"><span class="chip">Time · 1–2 days</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Threat modeling for agentic apps</li>
+            <li>Secret redaction in traces</li>
+            <li>Prod vs demo modes (no silent canned “success”)</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build / verify</strong>
+          <ol style="margin:0">
+            <li>Encrypt secrets; fix Docker paths; CORS lockdown for prod</li>
+            <li>Max cost/tokens per run; idempotency on publish</li>
+            <li>Write a ½-page threat model: assets, attackers, controls → code modules</li>
+            <li>README: architecture, how to run evals, LM Studio setup</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">You can point each control in your threat model to a concrete module — and the <a href="syllabus.html">definition of done</a> checklist is complete.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <div class="callout learn" style="margin-top:1.5rem">
+          <strong class="label">You finished the course spine</strong>
+          <p style="margin:0">
+            Revisit <a href="principles.html">principles</a> and
+            <a href="architecture.html">architecture</a> — they should now feel earned, not abstract.
+            Next builds are product polish (calendar, gallery), not missing control-plane pieces.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

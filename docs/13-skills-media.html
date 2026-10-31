@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>13 · Skills &amp; media — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="13"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 4 · Lesson 13</p>
+        <h1>Skills &amp; media</h1>
+        <p class="lead">Expand the skill suite; implement free-media fetch behind policy. Artifacts live on disk + DB.</p>
+        <div class="meta-row"><span class="chip">Time · 1–2 days</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Agent loop tools: plan → caption → media_prompts → review → finish</li>
+            <li><code>media_prompts</code> emits <code>image_prompt</code> (brief) + <code>stock_search_query</code> (Pexels keywords)</li>
+            <li>Human fetch downloads bytes; loop never writes <code>image_url</code></li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Wire caption / media-prompt / review into the agent loop</li>
+            <li>Pexels download via <code>stock_search_query</code> → <code>assets/</code> → <code>media_ready</code></li>
+            <li>Policy: agent may <code>media.search</code> only after human starts; still cannot publish</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">After approve → <strong>Generate with Pexels</strong>, the post has a real image on disk and <code>media_provider=pexels</code>.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <ul style="margin:0">
+            <li><code>POST /agent-run</code> uses <code>runAgent</code> (not fixed pipeline)</li>
+            <li><code>stock_search_query</code> on the post from <code>media_prompts</code></li>
+            <li><code>POST /fetch-media</code> <code>{"provider":"pexels"}</code> — human from approved / regenerate from media_ready</li>
+            <li>UI: <strong>Generate with Pexels</strong></li>
+            <li>Key: <code>PEXELS_API_KEY</code> in <code>.env.local</code></li>
+          </ul>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap"># Post must be approved first:
+curl -s -X POST localhost:3001/api/posts/ID/fetch-media \
+  -H 'Content-Type: application/json' \
+  -d '{"provider":"pexels","actor":{"id":"local-dev","name":"Local"}}'
+# → status media_ready, image_url …/assets/posts/ID/…
+
+ls server/assets/posts/ID/</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

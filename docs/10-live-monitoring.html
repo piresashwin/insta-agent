@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>10 · Live monitoring — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="10"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 3 · Lesson 10</p>
+        <h1>Live monitoring</h1>
+        <p class="lead">Observability UX: stream or poll run events into an Activity panel. Correlate <code>post_id</code> ↔ <code>run_id</code>.</p>
+        <div class="meta-row">
+          <span class="chip">Time · 1 day</span>
+          <span class="chip accent">Observability UX</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>SSE vs polling tradeoffs</li>
+            <li>Rendering tool steps, durations, errors</li>
+            <li>Redacting secrets from event payloads in the UI</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>GET /api/runs/:id/events</code> (SSE) or poll while <code>running</code></li>
+            <li>React Activity panel on post detail</li>
+            <li>Show model name + step status live</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Start a run; watch steps appear without a full page refresh.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <ul style="margin:0">
+            <li><code>POST /api/posts/:id/agent-run</code> returns <code>202</code> + <code>run_id</code> immediately</li>
+            <li>Pipeline appends <code>step</code> events (plan → caption → media → review)</li>
+            <li><code>GET /api/runs/:id/events?after=</code> — SSE; heartbeat; closes on <code>run_done</code></li>
+            <li>Agent runs → Activity panel: EventSource + poll fallback; payload redact</li>
+          </ul>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap"># After agent-run returns run_id=N:
+curl -N localhost:3001/api/runs/N/events
+# expect: event: run_meta / run_event / run_done
+
+# UI: New post → Create + run agent → Agent runs tab shows live steps</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p style="margin:0.75rem 0 0">
+            (1) Watch cognition without guessing. (2) Operators via UI/curl — not the model.
+            (3) Invent run history; show raw secrets. (4) SSE curl or Activity “live” badge.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

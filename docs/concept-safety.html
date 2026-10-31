@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safety &amp; compliance — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="safety"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept</p>
+        <h1>Safety &amp; compliance</h1>
+        <p class="lead">
+          “Safe” means the system cannot take irreversible actions without policy and
+          (usually) a human. “Compliant” means secrets, consent, platform rules, and
+          audit trails are designed in — not bolted on.
+        </p>
+
+        <h2>Safety controls you will build</h2>
+        <ul>
+          <li><strong>Policy gate</strong> — allow/deny by actor + action + resource</li>
+          <li><strong>Operator auth</strong> — who may call the API / dashboard (see <a href="concept-policy-vs-auth.html">Policy vs operator auth</a>)</li>
+          <li><strong>HITL states</strong> — approve / changes_requested before publish</li>
+          <li><strong>Budgets</strong> — max steps, tokens, wall time, revisions</li>
+          <li><strong>Idempotent publish</strong> — retries do not double-post</li>
+          <li><strong>Labeled fallbacks</strong> — never pretend canned text is a live model</li>
+        </ul>
+
+        <h2>Compliance checklist (practical)</h2>
+        <table>
+          <thead><tr><th>Area</th><th>Practice</th></tr></thead>
+          <tbody>
+            <tr><td>Secrets</td><td>Encrypt at rest; never commit; redact from traces</td></tr>
+            <tr><td>OAuth</td><td>Real consent; store least privilege; support disconnect</td></tr>
+            <tr><td>Audit</td><td>Log denies, publishes, auth events (without raw tokens)</td></tr>
+            <tr><td>Platform</td><td>Respect Meta rate limits and content/app policies</td></tr>
+            <tr><td>Data</td><td>Know what PII you store; define retention if needed</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Threat model (½ page you will write in Step 17)</h2>
+        <ol>
+          <li>What assets matter? (tokens, brand voice, publish capability)</li>
+          <li>Who might misuse them? (prompt injection, stolen env, buggy tool)</li>
+          <li>What control stops each path? (policy, encryption, HITL, evals)</li>
+        </ol>
+
+        <div class="callout notes">
+          <strong class="label">Remember</strong>
+          <p style="margin:0">
+            Prompt text that says “never publish without approval” is not a control.
+            A policy function that returns deny — and a test that proves it — is a control.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

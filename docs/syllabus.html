@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Syllabus — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="syllabus"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Reference</p>
+        <h1>Full syllabus</h1>
+        <p class="lead">Eighteen lessons. One concept per page. Build the checkpoint before advancing.</p>
+
+        <h2>Week plan</h2>
+        <table>
+          <thead>
+            <tr><th>Week</th><th>Lessons</th><th>Focus</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>0–1</td><td><a href="00-mental-model.html">00</a>–<a href="04-durable-runs.html">04</a></td><td>Brain, skill, loop, runs</td></tr>
+            <tr><td>2</td><td><a href="05-orchestrator.html">05</a>–<a href="08-rest-api.html">08</a></td><td>Orchestrator, policy, HITL, API</td></tr>
+            <tr><td>3</td><td><a href="09-react-ui.html">09</a>–<a href="11-mcp-harness.html">11</a></td><td>React truth, monitor, MCP</td></tr>
+            <tr><td>4</td><td><a href="12-memory.html">12</a>–<a href="15-gated-publish.html">15</a></td><td>Memory, media, OAuth, publish</td></tr>
+            <tr><td>5</td><td><a href="16-evals.html">16</a>–<a href="17-hardening.html">17</a></td><td>Evals + hardening</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Lesson list</h2>
+        <ol>
+          <li><a href="00-mental-model.html">Mental model</a> — cognition vs authority</li>
+          <li><a href="01-model-adapter.html">Model adapter</a> — LM Studio / OpenAI-compatible</li>
+          <li><a href="02-structured-skill.html">Structured skill</a> — schema contracts</li>
+          <li><a href="03-agent-loop.html">Agent loop</a> — ReAct lite + budgets</li>
+          <li><a href="04-durable-runs.html">Durable runs</a> — observability foundation</li>
+          <li><a href="05-orchestrator.html">Orchestrator</a> — domain status machine (<a href="concept-orchestrator.html">deep dive</a>)</li>
+          <li><a href="06-policy-gate.html">Policy gate</a> — safety core</li>
+          <li><a href="07-hitl.html">HITL approvals</a> — approve / revise</li>
+          <li><a href="08-rest-api.html">REST interface</a> — stable HTTP contracts</li>
+          <li><a href="09-react-ui.html">React truth UI</a> — no demo data</li>
+          <li><a href="10-live-monitoring.html">Live monitoring</a> — SSE / poll runs</li>
+          <li><a href="11-mcp-harness.html">MCP harness</a> — any IDE client</li>
+          <li><a href="12-memory.html">Memory layers</a> — brand + learn</li>
+          <li><a href="13-skills-media.html">Skills &amp; media</a> — free stock pipeline</li>
+          <li><a href="14-instagram-oauth.html">Instagram OAuth</a> — compliant connect</li>
+          <li><a href="15-gated-publish.html">Gated publish</a> — idempotent Graph publish</li>
+          <li><a href="16-evals.html">Evals suite</a> — golden + policy tests</li>
+          <li><a href="17-hardening.html">Hardening</a> — threat model + ops</li>
+        </ol>
+
+        <h2>Definition of done</h2>
+        <ul>
+          <li>Budgeted agent loop</li>
+          <li>LM Studio via OpenAI-compatible adapter</li>
+          <li>Schema’d skills</li>
+          <li>Orchestrator + status machine</li>
+          <li>Policy gate on side effects</li>
+          <li>HITL approve / revise</li>
+          <li>MCP + React on the same truth</li>
+          <li>Live run monitoring</li>
+          <li>Brand memory injection</li>
+          <li>Real media + gated Instagram publish</li>
+          <li>Evals + redacted traces</li>
+          <li>Documented threat / compliance notes</li>
+        </ul>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

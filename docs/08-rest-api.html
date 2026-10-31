@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>08 · REST interface — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="08"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 2 · Lesson 08</p>
+        <h1>REST interface</h1>
+        <p class="lead">Stable HTTP contracts so UI and scripts are interchangeable clients of the orchestrator.</p>
+        <div class="meta-row"><span class="chip">Time · ½–1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Errors as contracts (status + body shape)</li>
+            <li>Idempotent reads; careful writes</li>
+            <li>API is not the agent — it starts runs and exposes state</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>CRUD posts, list/filter, get run timeline</li>
+            <li><code>PATCH /api/posts/:id</code>, approve / request-changes</li>
+            <li>Consistent JSON error shape</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0"><code>curl</code> alone can create a post, start a run, approve — no UI required.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            <code>GET /api</code> catalog.
+            <code>GET /api/posts?status=</code> filter.
+            <code>PATCH</code> / <code>DELETE /api/posts/:id</code> (no status via PATCH).
+            Errors always <code>{ "error": "…" }</code>.
+            Runs: <code>GET /api/runs/:id</code> timeline; <code>?post_id=</code> on list.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify (curl)</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap">curl -s localhost:3001/api
+
+curl -s -X POST localhost:3001/api/posts \
+  -H 'Content-Type: application/json' -d '{"topic":"rest check"}'
+# note id
+
+curl -s -X PATCH localhost:3001/api/posts/ID \
+  -H 'Content-Type: application/json' -d '{"topic":"rest check patched"}'
+
+curl -s 'localhost:3001/api/posts?status=draft'
+
+# Happy path still: agent-run → approve (needs pending_approval)
+curl -s -X POST localhost:3001/api/posts/ID/agent-run \
+  -H 'Content-Type: application/json' -d '{}'
+curl -s -X POST localhost:3001/api/posts/ID/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"actor":{"id":"local-dev","name":"Local"}}'
+
+curl -s localhost:3001/api/runs?post_id=ID</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

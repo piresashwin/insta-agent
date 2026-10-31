@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>11 · MCP harness — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="11"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 3 · Lesson 11</p>
+        <h1>MCP harness</h1>
+        <p class="lead">“Any harness” means the same orchestrator tools are reachable from Cursor / Claude Code / scripts via MCP.</p>
+        <div class="meta-row"><span class="chip">Time · 1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>MCP vs REST: same authority, different clients</li>
+            <li>Tool descriptions are UX for the harness agent</li>
+            <li>Never expose raw publish without the same policy gate</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Expand <code>server/src/mcp-server.js</code> beyond skills</li>
+            <li>Add <code>list_posts</code>, <code>get_run</code>, <code>start_run_on_post</code>, <code>get_brand_context</code></li>
+            <li>Start a draft from the IDE; confirm it appears in React</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">A run started from MCP shows up in the React monitor with the same <code>run_id</code>.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

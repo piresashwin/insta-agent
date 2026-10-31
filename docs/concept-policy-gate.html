@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Policy gate deep dive — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="policy-gate"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Detailed lesson · Chapter 06</p>
+        <h1>Policy gate</h1>
+        <p class="lead">
+          Cognition proposes. Policy decides whether this <em>actor</em> may perform this
+          <em>action</em> on this <em>resource</em>. Deny without a durable record is theater —
+          refuse the side effect <em>and</em> store the deny.
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Week 2 · Lesson 06</span>
+          <span class="chip warn">Critical</span>
+          <span class="chip">Built in this repo</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            <code>can(actor, action, resource)</code> answers capability.
+            Lesson 05’s <code>transitionPost</code> answers status-edge legality.
+            Operator auth (who is this person?) is still later — see
+            <a href="concept-policy-vs-auth.html">Policy vs operator auth</a>.
+          </p>
+        </div>
+
+        <h2>1. Where you are in the course</h2>
+        <table>
+          <thead>
+            <tr><th>Chapter</th><th>What you had</th><th>Gap</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>05</td>
+              <td>Status machine + <code>transitionPost</code> chokepoint</td>
+              <td>Legal edge ≠ allowed for this actor / irreversible action</td>
+            </tr>
+            <tr>
+              <td><strong>06</strong></td>
+              <td>Role allowlists + durable <code>policy_deny</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>07 (next)</td>
+              <td>HITL approve / revise depth</td>
+              <td>Revision caps, layered approvals as policy inputs</td>
+            </tr>
+            <tr>
+              <td>15 / 17</td>
+              <td>Real Graph publish + hardening</td>
+              <td>Same gate in front of Instagram; operator auth in front of the API</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          05 stops illegal status jumps. 06 stops the wrong <em>kind of actor</em> from doing
+          irreversible work even when the status graph looks tempting.
+        </p>
+
+        <h2>2. Lesson idea → code</h2>
+        <table>
+          <thead>
+            <tr><th>Lesson idea</th><th>Code</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>policy.can(actor, action, resource)</code></td>
+              <td><code>can()</code> in <code>server/src/policy.ts</code></td>
+            </tr>
+            <tr>
+              <td>Agent may draft / search; never publish</td>
+              <td><code>AGENT_ACTIONS</code> vs <code>HUMAN_ACTIONS</code></td>
+            </tr>
+            <tr>
+              <td>Deny must refuse <em>and</em> be logged</td>
+              <td><code>assertAllowed</code> → <code>recordPolicyDeny</code> → <code>policy_deny</code> + <code>needs_human</code></td>
+            </tr>
+            <tr>
+              <td>Model saying “publish now” still fails</td>
+              <td><code>POST /api/posts/:id/instagram-publish</code> with <code>{"as":"agent"}</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3. Stacked checks (05 + 06)</h2>
+        <pre><code>request
+  → (operator auth later — Lesson 17 / Access / IdP)
+  → load post
+  → policy.can(actor, action, post)     // 06: capability
+  → transitionPost(nextStatus)          // 05: edge legality
+  → side effect / response
+  → on deny: policy_deny event (durable)</code></pre>
+        <p>
+          Order in routes today: <strong>policy first</strong>, then orchestrator.
+          An edge can be in the machine and still be denied (agent + <code>instagram.publish</code>
+          on an <code>approved</code> post). A human can pass policy and still hit 409 if the
+          status edge is illegal.
+        </p>
+
+        <h2>4. The gate itself</h2>
+        <p>
+          <code>can()</code> is pure: role allowlist, then action-specific resource rules.
+          No network. No LLM.
+        </p>
+        <ul>
+          <li>
+            <strong>Agent</strong> — <code>post.draft</code>, <code>media.search</code> only
+            (<code>AGENT_PIPELINE</code> principal used by agent-run)
+          </li>
+          <li>
+            <strong>Human</strong> — those plus <code>post.approve</code>,
+            <code>post.request_changes</code>, <code>post.start_publish</code>,
+            <code>instagram.publish</code>
+          </li>
+          <li>
+            <strong>Approve</strong> — requires human <code>id</code> + <code>name</code>
+          </li>
+          <li>
+            <strong>start_publish</strong> — post must already be <code>approved</code>
+          </li>
+          <li>
+            <strong>instagram.publish</strong> — agent always denied; human only from
+            <code>approved | media_ready | pending_upload | publishing</code>
+          </li>
+        </ul>
+        <div class="callout notes">
+          <strong class="label">Hard wall</strong>
+          <p style="margin:0">
+            Even if status is <code>approved</code>, <code>role: "agent"</code> cannot
+            <code>instagram.publish</code>. That is the irreversible-action allowlist —
+            not a system prompt.
+          </p>
+        </div>
+
+        <h2>5. Deny is only a control if it is durable</h2>
+        <p>
+          <code>assertAllowed</code> calls <code>can</code>. On deny it calls
+          <code>recordPolicyDeny</code> (creates or reuses a run, appends
+          <code>policy_deny</code>, completes as <code>needs_human</code>), then throws
+          <code>ApiError 403</code> with <code>run_id</code> in the message.
+        </p>
+        <p>
+          A silent 403 would not pass the lesson checkpoint. The audit trail is part of the control.
+        </p>
+
+        <h2>6. Built in this repo</h2>
+        <ul>
+          <li>
+            <code>server/src/policy.ts</code> —
+            <code>can</code>, <code>assertAllowed</code>, <code>recordPolicyDeny</code>,
+            <code>AGENT_PIPELINE</code>, <code>humanFromBody</code>
+          </li>
+          <li>
+            <code>server/src/server.ts</code> — policy before mutations on
+            agent-run, approve, request-changes, publish, published, and the checkpoint route
+          </li>
+          <li>
+            Checkpoint surface —
+            <code>POST /api/posts/:id/instagram-publish</code>
+            (<code>as: "agent" | "human"</code>). Graph call still Lesson 15.
+          </li>
+        </ul>
+        <pre><code>// agent-run: cognition only after policy allows draft
+const agentActor = { ...AGENT_PIPELINE, run_id: run.id }
+assertAllowed(agentActor, 'post.draft', { type: 'post', post }, run.id)
+// … generate … then transitionPost → pending_approval
+
+// checkpoint: simulate “model said publish”
+assertAllowed(
+  { role: 'agent', id: 'agent:model', name: 'model-said-publish' },
+  'instagram.publish',
+  { type: 'post', post }
+)
+// → 403 + policy_deny run</code></pre>
+
+        <h2>7. Checkpoint (model said publish)</h2>
+        <p>With the server running (<code>pnpm --filter server dev</code>):</p>
+        <pre><code>curl -s -X POST localhost:3001/api/posts \
+  -H 'Content-Type: application/json' -d '{"topic":"policy check"}'
+# note post.id
+
+curl -s -X POST localhost:3001/api/posts/ID/instagram-publish \
+  -H 'Content-Type: application/json' -d '{"as":"agent"}'
+# → 403 Policy deny: role "agent" cannot perform "instagram.publish" (run_id=N)
+
+curl -s localhost:3001/api/runs/N
+# → kind "policy", event type "policy_deny", status "needs_human"
+
+# Contrast (after post is approved via the real ladder):
+curl -s -X POST localhost:3001/api/posts/ID/instagram-publish \
+  -H 'Content-Type: application/json' \
+  -d '{"as":"human","actor":{"id":"local-dev","name":"Local operator"}}'
+# → 200 ok stub (Graph still Lesson 15)
+
+# Agent still denied even when status is approved
+curl -s -X POST localhost:3001/api/posts/ID/instagram-publish \
+  -H 'Content-Type: application/json' -d '{"as":"agent"}'
+# → 403 again</code></pre>
+        <div class="callout check">
+          <strong class="label">Pass</strong>
+          <p style="margin:0">
+            Agent publish attempt returns 403; <code>GET /api/runs/N</code> shows
+            <code>policy_deny</code> and <code>needs_human</code>. Human on a ready status
+            can pass the stub; agent cannot.
+          </p>
+        </div>
+
+        <h2 id="8-four-notes-answered">8. Four notes (answered)</h2>
+        <ol>
+          <li>
+            <strong>Problem?</strong> Cognition ≠ authority. The pipeline / model cannot
+            invent publish or approve rights.
+          </li>
+          <li>
+            <strong>Who may call it?</strong> Every world-mutating route that matters —
+            agent-run, approve, request-changes, publish start, published, instagram-publish.
+            Later MCP tools must share the same <code>assertAllowed</code>, not invent checks.
+          </li>
+          <li>
+            <strong>Must never?</strong> Grant <code>instagram.publish</code> or approve to
+            <code>role: "agent"</code>; mutate on deny without logging; live only in a system prompt.
+          </li>
+          <li>
+            <strong>Observe / test?</strong>
+            <code>GET /api/runs/N</code> after a deny — <code>kind: "policy"</code>,
+            event <code>policy_deny</code>, status <code>needs_human</code>. Curl the matrix:
+            agent vs human × draft vs approved.
+          </li>
+        </ol>
+
+        <h2>9. What is still missing</h2>
+        <ul>
+          <li>
+            <strong>Operator auth</strong> — <code>humanFromBody</code> trusts the JSON body.
+            Anyone who can hit localhost can claim to be a human. Policy is real; identity is not yet.
+          </li>
+          <li>
+            <strong>Real Instagram Graph</strong> — checkpoint stub returns JSON; Lesson 15 puts
+            the same gate in front of the adapter.
+          </li>
+          <li>
+            <strong>Budgets</strong> — revision caps, rate limits (Lesson 07 / 17) become more
+            inputs to <code>can()</code>, not new ad-hoc ifs in routes.
+          </li>
+        </ul>
+        <p>
+          Broader split and auth paths:
+          <a href="concept-policy-vs-auth.html">Policy vs operator auth</a> ·
+          <a href="concept-safety.html">Safety &amp; compliance</a>.
+        </p>
+
+        <h2>10. What comes next</h2>
+        <p>
+          <strong>Lesson 07 — HITL</strong> deepens the human side of the ladder that policy
+          already allows: approve, request changes, revision discipline. Policy already forbids
+          the agent from those actions — HITL makes the human path product-grade.
+        </p>
+
+        <p><a href="06-policy-gate.html">← Back to Lesson 06 card</a></p>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>05 · Orchestrator — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="05"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 2 · Lesson 05</p>
+        <h1>Orchestrator</h1>
+        <p class="lead">Source of truth for posts and lifecycle. The agent drafts; the orchestrator owns state.</p>
+        <div class="meta-row">
+          <span class="chip">Time · 1 day</span>
+          <span class="chip accent">Control plane</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Domain entities (<code>posts</code>) vs run records (<code>runs</code> / events)</li>
+            <li>Valid status transitions (status machine)</li>
+            <li>What belongs in orchestrator vs agent loop / skills</li>
+            <li>Why every status write must share one chokepoint</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>posts</code> + statuses: <code>draft → pending_approval → approved | changes_requested → …</code></li>
+            <li><code>server/src/orchestrator.ts</code> with <code>transitionPost(id, next, { actor, patch })</code></li>
+            <li>Wire agent-run, approve, request-changes, and publish stubs through that helper</li>
+            <li>Agent writes draft fields only; cannot set <code>published</code></li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">
+            Illegal transitions <code>draft → approved</code> and <code>draft → published</code>
+            return an error; <code>GET /api/posts/:id</code> still shows <code>draft</code>.
+            DB never lies.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            <code>server/src/orchestrator.ts</code> owns <code>VALID_TRANSITIONS</code> and
+            <code>transitionPost</code>. <code>server/src/server.ts</code> routes every post
+            status change through it (including agent-run → <code>pending_approval</code>).
+            Publish stubs no longer bypass the machine.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify (curl)</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap">curl -s -X POST localhost:3001/api/posts \
+  -H 'Content-Type: application/json' -d '{"topic":"orch check"}'
+# use returned id:
+curl -s -X POST localhost:3001/api/posts/ID/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"actor":{"id":"local-dev","name":"Local operator"}}'
+# expect: Invalid transition "draft" -&gt; "approved"
+
+curl -s -X POST localhost:3001/api/posts/ID/published -H 'Content-Type: application/json' -d '{}'
+# expect: Invalid transition "draft" -&gt; "published"</pre>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Detailed lesson</strong>
+          <p style="margin:0">
+            Domain vs runs, full status graph, orchestrator vs loop, chokepoint design,
+            checkpoint walkthrough, four notes answered —
+            <a href="concept-orchestrator.html">Orchestrator (deep dive)</a>.
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p style="margin:0.75rem 0 0">
+            Answers are written out in the
+            <a href="concept-orchestrator.html#7-four-notes-answered">deep dive §7</a>.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

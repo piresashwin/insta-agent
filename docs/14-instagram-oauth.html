@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>14 · Instagram OAuth — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="14"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 4 · Lesson 14</p>
+        <h1>Instagram OAuth</h1>
+        <p class="lead">Compliance-sensitive connect flow. Saving App ID ≠ connected. Real consent + token exchange.</p>
+        <div class="meta-row">
+          <span class="chip">Time · 1–2 days</span>
+          <span class="chip warn">Compliance</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>OAuth consent → short-lived → long-lived token</li>
+            <li>Encrypt secrets at rest; redirect URI hygiene</li>
+            <li>Disconnect / revoke path; log auth events without raw tokens</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>OAuth initiate + callback endpoints</li>
+            <li>Encrypt tokens in SQLite</li>
+            <li>React connection status reflects real Graph auth</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Dashboard shows a real connected Business account; failures are loud, not silently “connected.”</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <ul style="margin:0">
+            <li><code>GET /api/auth/instagram/start/:id</code> → Meta consent</li>
+            <li>Provider: <strong>Instagram Login</strong> (not Facebook Login / Page tokens)</li>
+            <li>Authorize: <code>instagram.com/oauth/authorize</code></li>
+            <li>Code → <code>api.instagram.com/oauth/access_token</code> → short-lived</li>
+            <li>Short → <code>graph.instagram.com/access_token?grant_type=ig_exchange_token</code></li>
+            <li>Profile: <code>graph.instagram.com/me</code>; IG user token encrypted at rest</li>
+            <li><code>POST /api/auth/instagram/:id/token</code> — paste Meta “Generate token” (local, no HTTPS)</li>
+            <li><code>POST /api/auth/instagram/:id/disconnect</code>; <code>auth_events</code> (no raw tokens)</li>
+            <li>Dev: <code>INSTAGRAM_OAUTH_MOCK=true</code> + Mock connect (optional)</li>
+          </ul>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Local connect (no tunnel)</strong>
+          <ol style="margin:0">
+            <li>Meta App → Instagram → API setup → <strong>Generate token</strong></li>
+            <li>Accounts → save App ID + secret → <strong>Connect with pasted token</strong></li>
+          </ol>
+          <p style="margin:0.5rem 0 0">
+            Quick Cloudflare/ngrok URLs often fail Meta checks. Browser OAuth needs a
+            <em>stable HTTPS</em> host (<code>PUBLIC_API_BASE</code> /
+            <code>INSTAGRAM_REDIRECT_URI</code>).
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p style="margin:0.75rem 0 0">
+            (1) Prove a real human consented and we hold a usable Page/IG token.
+            (2) Operator via Accounts UI / OAuth routes — not the agent.
+            (3) Mark connected without Graph; log raw tokens; skip encryption in prod.
+            (4) Happy path → status connected + username; deny/fail → status error + banner.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

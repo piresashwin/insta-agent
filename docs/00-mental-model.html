@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>00 · Mental model — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="00"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Phase 0 · Lesson 00</p>
+        <h1>Mental model</h1>
+        <p class="lead">Before code: know what an agentic system is, and what your repo already approximates.</p>
+        <div class="meta-row">
+          <span class="chip">Time · ~½ day</span>
+          <span class="chip accent">No code required</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Cognition vs authority</li>
+            <li>Agent loop vs chatbot</li>
+            <li>Why HITL exists</li>
+            <li>Policy (“is this legal?”) vs operator auth (“who may ask?”) — see <a href="concept-policy-vs-auth.html">sub-chapter</a></li>
+            <li>Why a single harness (e.g. Hermes-only) is optional if MCP + orchestrator exist</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build / do</strong>
+          <ol style="margin:0">
+            <li>Sketch the architecture from <a href="architecture.html">Architecture map</a> on paper.</li>
+            <li>Open the repo: mark what exists (<code>server/</code>, skills, MCP, React demo) vs missing (runs, LM Studio adapter, real OAuth).</li>
+            <li>Write one sentence: “In my system the LLM is allowed to ___ and never ___.”</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">You can explain in one minute why the LLM must not call Instagram publish directly.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p>For Phase 0, answer for the <em>system as a whole</em>.</p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

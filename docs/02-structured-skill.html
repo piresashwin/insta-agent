@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>02 · Structured skill — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="02"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 1 · Lesson 02</p>
+        <h1>Structured skill</h1>
+        <p class="lead">A skill is a capability with a contract — not a vibe. Pure functions: no DB, no Instagram.</p>
+        <div class="meta-row"><span class="chip">Time · ½ day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Skills as contracts (Zod / JSON Schema)</li>
+            <li>Skill purity: return artifacts, don’t own side effects</li>
+            <li>Validate → retry once → fail loudly</li>
+            <li>
+              Later (Ch.03): a skill becomes a <strong>tool</strong> when registered on the agent loop —
+              see <a href="concept-agent-loop.html">good vs bad tools</a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>content_planning({ topic }) → { hook, angle, format, ... }</code></li>
+            <li>Use structured output from the model adapter</li>
+            <li>Unit-test: invalid shape is rejected</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Given a topic, you always get parseable JSON or a clear error — never free-form mush you hand-parse with regex.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orchestrator deep dive — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="orchestrator"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Detailed lesson · Chapter 05</p>
+        <h1>Orchestrator</h1>
+        <p class="lead">
+          The agent drafts content. The orchestrator owns durable post state and the only
+          legal paths between statuses. Without this layer, the model (or the UI) invents reality.
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Week 2 · Lesson 05</span>
+          <span class="chip">Control plane</span>
+          <span class="chip">Built in this repo</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            A <strong>post</strong> is the product domain object.
+            A <strong>run</strong> is the flight recorder for one cognition attempt.
+            <code>transitionPost</code> is the single chokepoint for every status write —
+            cognition may patch fields; it may never invent <code>published</code>.
+          </p>
+        </div>
+
+        <h2>1. Where you are in the course</h2>
+        <table>
+          <thead>
+            <tr><th>Chapter</th><th>What you had</th><th>Gap</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>01–04</td>
+              <td>Model, skills, loop, durable runs</td>
+              <td>Cognition can succeed while product state is ad hoc</td>
+            </tr>
+            <tr>
+              <td><strong>05</strong></td>
+              <td>Status machine + orchestrator module</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>06 (next)</td>
+              <td>Policy gate on side effects</td>
+              <td>“Legal edge” ≠ “allowed for this actor / media / schedule”</td>
+            </tr>
+            <tr>
+              <td>07</td>
+              <td>HITL approve / revise depth</td>
+              <td>Revision caps, layered approvals</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Week 1 proved the brain works. Week 2 starts the <strong>control plane</strong>:
+          who owns the post lifecycle when the model is done talking.
+        </p>
+
+        <h2>2. Domain entity vs run record</h2>
+        <table>
+          <thead>
+            <tr><th></th><th>Post (domain)</th><th>Run (observability)</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Answers</strong></td>
+              <td>“What is this Instagram draft’s lifecycle?”</td>
+              <td>“What did cognition do this attempt?”</td>
+            </tr>
+            <tr>
+              <td><strong>Mutability</strong></td>
+              <td>Current status + fields (updated carefully)</td>
+              <td>Append-only events; status ends succeeded/failed/…</td>
+            </tr>
+            <tr>
+              <td><strong>Owned by</strong></td>
+              <td>Orchestrator</td>
+              <td>Runs helpers + caller that wraps cognition</td>
+            </tr>
+            <tr>
+              <td><strong>Humans care</strong></td>
+              <td>Approve, revise, publish</td>
+              <td>Debug, audit, monitor</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <code>POST /api/posts/:id/agent-run</code> does both: creates a <code>run</code>,
+          fills draft fields from the pipeline, then asks the orchestrator to move the post
+          to <code>pending_approval</code>. Two tables, one HTTP call — orchestrator coordinates.
+        </p>
+
+        <h2>3. Status machine</h2>
+        <pre><code>draft ──► pending_approval ──► approved
+                │     ▲              │
+                │     └── changes_requested
+                │                    ▼
+                └── (self)     media_generating ► media_ready ► …
+                regenerate              ▼
+                                   published | failed</code></pre>
+        <p>
+          The self-edge on <code>pending_approval</code> is deliberate: the operator may
+          re-run the agent while still waiting to approve. That is still a legal edge —
+          not a silent SQL overwrite that skips validation.
+        </p>
+        <p>
+          Terminal-ish states <code>published</code> and <code>failed</code> have empty
+          outgoing lists in the machine for now. Later lessons add retry / reschedule edges
+          when policy and publish are real.
+        </p>
+
+        <h2>4. Orchestrator vs agent loop</h2>
+        <table>
+          <thead>
+            <tr><th>Job</th><th>Orchestrator</th><th>Agent / skills</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Create post row</td>
+              <td>Yes</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>Decide status edges</td>
+              <td>Yes (<code>transitionPost</code>)</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>Write hook / caption / prompts</td>
+              <td>Stores via patch after cognition</td>
+              <td>Produces structured content</td>
+            </tr>
+            <tr>
+              <td>Log run events</td>
+              <td>Caller wraps cognition</td>
+              <td>Optional <code>onEvent</code></td>
+            </tr>
+            <tr>
+              <td>Approve / request-changes</td>
+              <td>Yes</td>
+              <td>Never</td>
+            </tr>
+            <tr>
+              <td>Set <code>published</code></td>
+              <td>Only via legal edge (later + policy)</td>
+              <td>Never</td>
+            </tr>
+            <tr>
+              <td>Call Instagram Graph</td>
+              <td>Later, gated</td>
+              <td>Never</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>5. Built in this repo</h2>
+        <ul>
+          <li>
+            <code>server/src/orchestrator.ts</code> —
+            <code>VALID_TRANSITIONS</code>, <code>validateTransition</code>,
+            <code>transitionPost</code>, <code>canStartAgentRun</code>, <code>ApiError</code>
+          </li>
+          <li>
+            <code>server/src/server.ts</code> — every post status change routes through
+            <code>transitionPost</code> (agent-run, approve, request-changes, publish stubs)
+          </li>
+          <li>
+            Skills / pipeline never <code>UPDATE posts SET status</code> themselves
+          </li>
+        </ul>
+        <pre><code>// Shape of the chokepoint (simplified)
+transitionPost(id, nextStatus, {
+  actor?,          // required when next === 'approved'
+  patch?: {        // whitelist: hook, caption, image_url, …
+    caption: '...',
+    agent_output: '...'
+  }
+})
+// → validates edge → one UPDATE → returns Post
+// Illegal edge → ApiError 409; DB unchanged</code></pre>
+
+        <h2>6. Checkpoint (prove the DB never lies)</h2>
+        <p>With the server running (<code>pnpm --filter server dev</code>):</p>
+        <pre><code># 1) Create a draft
+curl -s -X POST localhost:3001/api/posts \
+  -H 'Content-Type: application/json' \
+  -d '{"topic":"orch check"}'
+# note post.id
+
+# 2) Illegal: skip the machine
+curl -s -X POST localhost:3001/api/posts/ID/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"actor":{"id":"local-dev","name":"Local operator"}}'
+# → {"error":"Invalid transition: \"draft\" -> \"approved\". Allowed: [pending_approval]"}
+
+curl -s -X POST localhost:3001/api/posts/ID/published \
+  -H 'Content-Type: application/json' -d '{}'
+# → Invalid transition draft → published
+
+# 3) Confirm row still draft
+curl -s localhost:3001/api/posts/ID</code></pre>
+        <div class="callout check">
+          <strong class="label">Pass</strong>
+          <p style="margin:0">
+            Illegal transitions return an error body; <code>GET</code> still shows
+            <code>status: "draft"</code>. Happy path remains:
+            create → agent-run → <code>pending_approval</code> → approve with actor → <code>approved</code>.
+          </p>
+        </div>
+
+        <h2 id="7-four-notes-answered">7. Four notes (answered)</h2>
+        <ol>
+          <li>
+            <strong>Problem?</strong> Durable, consistent lifecycle so cognition and clients
+            cannot invent product state.
+          </li>
+          <li>
+            <strong>Who may call it?</strong> REST (and later MCP) through the same APIs —
+            React, curl, harnesses. Not the model directly.
+          </li>
+          <li>
+            <strong>Must never?</strong> Be the LLM; skip transition checks; let the UI
+            write raw status without validation; let skills set <code>published</code>.
+          </li>
+          <li>
+            <strong>Observe / test?</strong> Curl illegal edges; assert status unchanged;
+            after agent-run, inspect post status <em>and</em> linked <code>run_id</code> timeline.
+          </li>
+        </ol>
+
+        <h2>8. What comes next</h2>
+        <p>
+          <strong>Lesson 06 — Policy gate</strong> sits <em>on top of</em> this chokepoint:
+          an edge can be in the machine and still be denied (wrong actor, media not ready,
+          no Instagram connection). Do not skip 05’s machine and jump to policy — policy
+          needs a single place to hook. Built deep dive:
+          <a href="concept-policy-gate.html">Policy gate (detailed)</a>.
+        </p>
+        <p>
+          Product vision (niche → calendar → schedule) will reuse the same pattern:
+          every new domain object gets statuses and a transition helper before it gets a fancy UI.
+        </p>
+
+        <p><a href="05-orchestrator.html">← Back to Lesson 05 card</a></p>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

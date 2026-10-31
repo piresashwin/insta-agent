@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="home"></aside>
+    <main class="content home-hero">
+      <article class="article">
+        <p class="kicker">Course home</p>
+        <h1>Architecting a safe agentic system</h1>
+        <p class="lead">
+          A multi-page, learn-by-building course. Each lesson teaches one architecture
+          component, then you wire it into the next — until you have a gated,
+          observable Instagram content agent you understand end to end.
+        </p>
+
+        <div class="meta-row">
+          <span class="chip accent">~5 weeks at a steady pace</span>
+          <span class="chip">Local-first · LM Studio ready</span>
+          <span class="chip warn">Safety before Instagram</span>
+        </div>
+
+        <h2>How to use this course</h2>
+        <ul>
+          <li>Read one page at a time. Build the checkpoint before moving on.</li>
+          <li>After every step, answer the four notes questions at the bottom.</li>
+          <li>Do not skip policy, runs, or evals to “get to publishing faster.”</li>
+          <li>Open these files in a browser (or serve <code>docs/</code> with any static server).</li>
+        </ul>
+
+        <h2>Start paths</h2>
+        <div class="card-grid two">
+          <div class="card">
+            <a class="stretch" href="principles.html">
+              <h3>1. Core principles</h3>
+              <p>Cognition vs authority, budgets, HITL, harness-agnostic design.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="architecture.html">
+              <h3>2. Architecture map</h3>
+              <p>The target system diagram and what each layer owns.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="00-mental-model.html">
+              <h3>3. Begin Phase 0</h3>
+              <p>Sketch the system against the current repo, then start Step 01.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="syllabus.html">
+              <h3>4. Full syllabus</h3>
+              <p>All 18 lessons with week groupings and definition of done.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-policy-vs-auth.html">
+              <h3>5. Policy vs operator auth</h3>
+              <p>Legal transitions vs who may request them — plus implementation practices.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-cognition-model-adapter.html">
+              <h3>6. Cognition (model adapter)</h3>
+              <p>What we built for Chapter 01: LM Studio adapter, ping, fail-loud defaults.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-agent-loop.html">
+              <h3>7. Agent loop (detailed)</h3>
+              <p>Tools, who calls them, how args are known, ReAct vs pipeline, budgets.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-durable-runs.html">
+              <h3>8. Durable runs (detailed)</h3>
+              <p>run_id + append-only events, API timeline, how the loop persists steps.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-orchestrator.html">
+              <h3>9. Orchestrator (detailed)</h3>
+              <p>Status machine, transitionPost chokepoint, domain posts vs runs, Lesson 05 checkpoint.</p>
+            </a>
+          </div>
+          <div class="card">
+            <a class="stretch" href="concept-policy-gate.html">
+              <h3>10. Policy gate (detailed)</h3>
+              <p>can(actor, action, resource), agent never instagram.publish, durable policy_deny, Lesson 06 checkpoint.</p>
+            </a>
+          </div>
+        </div>
+
+        <h2>What you will build toward</h2>
+        <div class="arch">Harness (MCP) + React (IG + monitor + approve)
+        ↓
+Interface (MCP + REST + SSE)
+        ↓
+Orchestrator (state, policy, runs)
+        ↓
+Agent loop ↔ Model adapter (LM Studio / OpenAI-compatible)
+        ↓
+Skills/tools → Policy gate → Side effects (media, IG)
+        ↓
+Memory (brand/learn) + Evals</div>
+
+        <div class="callout notes">
+          <strong class="label">Golden rule</strong>
+          <p style="margin:0">
+            The model proposes. The orchestrator authorizes. Humans approve irreversible actions.
+            If the LLM can publish to Instagram without a gate, you do not have a safe agentic system.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

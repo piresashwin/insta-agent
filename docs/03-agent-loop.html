@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>03 · Agent loop — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="03"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 1 · Lesson 03</p>
+        <h1>Agent loop</h1>
+        <p class="lead">ReAct lite: plan → act → observe → stop. This is cognition — not persistence yet.</p>
+        <div class="meta-row"><span class="chip">Time · 1 day</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>What a <strong>tool</strong> is (vs skill / model / side effect)</li>
+            <li>Good tools vs bad tools (artifacts vs god-tools / publish / mush)</li>
+            <li>How tool parameters are known: prompt descriptions + tool-side validation (not magic)</li>
+            <li>Who calls tools: the <strong>loop</strong> executes; the <strong>model</strong> only chooses</li>
+            <li>Tool registry and observation normalizer</li>
+            <li>Stop conditions: success, error, max steps, timeout</li>
+            <li>Why budgets are part of architecture, not niceties</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>In-process loop with two tools: <code>content_planning</code>, <code>finish(draft)</code></li>
+            <li>Hard limits: <code>MAX_STEPS=8</code>, <code>TIMEOUT_MS=60000</code></li>
+            <li>Print every step to the console</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">You can watch the model choose tools. Killing the process mid-run corrupts nothing external (there is no world API yet).</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Detailed lesson</strong>
+          <p style="margin:0">
+            Full explanations: what a tool is, good vs bad, how args are known, who calls tools,
+            pipeline vs loop, budgets, pseudo code —
+            <a href="concept-agent-loop.html">The agent loop (deep dive)</a>
+            (especially §4.6–4.7).
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

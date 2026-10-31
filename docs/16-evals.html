@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>16 · Evals suite — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="16"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 5 · Lesson 16</p>
+        <h1>Evals suite</h1>
+        <p class="lead">Grade quality and policy. Pair with <a href="concept-evals-observability.html">Evals &amp; observability</a>. Re-run when you change models.</p>
+        <div class="meta-row">
+          <span class="chip">Time · 1–2 days</span>
+          <span class="chip accent">Quality bar</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Golden sets, schema checks, trajectory/policy checks</li>
+            <li>LLM-as-judge vs human labels (when each fits)</li>
+            <li>Regression discipline on prompt/model swaps</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>evals/</code> with 10–20 fixtures (topics + expectations)</li>
+            <li>Runner: schema + “never publish without approve”</li>
+            <li>Optional rubric judge for hook quality</li>
+            <li>Script: <code>pnpm eval</code> against LM Studio</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Change model → eval report shows pass/fail deltas. Failures are explainable via run traces.</p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

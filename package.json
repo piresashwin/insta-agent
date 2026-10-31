@@ -1,0 +1,25 @@
+{
+  "name": "instagram-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI agent that plans, drafts, generates assets for, and publishes Instagram content with human approvals and a React dashboard.",
+  "packageManager": "pnpm@12.16.1",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter server dev & pnpm --filter client dev",
+    "dev:server": "pnpm --filter server dev",
+    "dev:client": "pnpm --filter client dev",
+    "build": "pnpm --filter @instagram-agent/shared build && pnpm --filter server build && pnpm --filter client build",
+    "build:shared": "pnpm --filter @instagram-agent/shared build",
+    "build:server": "pnpm --filter server build",
+    "build:client": "pnpm --filter client build",
+    "prod": "pnpm --filter server start",
+    "db:migrate": "pnpm --filter server db:migrate",
+    "model:ping": "pnpm --filter server model:ping",
+    "agent:ping": "pnpm --filter server agent:ping"
+  }
+}

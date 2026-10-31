@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent loop deep dive — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="agent-loop"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Concept · Detailed lesson · Chapter 03</p>
+        <h1>The agent loop</h1>
+        <p class="lead">
+          Full explanation of ReAct-lite cognition: how a model repeatedly chooses tools,
+          observes results, and stops under budgets — and how that differs from the fixed
+          skill pipeline you already smoke-tested.
+        </p>
+        <div class="meta-row">
+          <span class="chip accent">Week 1 · Lesson 03</span>
+          <span class="chip">LangChain skills as tools</span>
+          <span class="chip warn">No LangGraph required yet</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">One-liner</strong>
+          <p style="margin:0">
+            An agent loop is a <strong>budgeted decide → act → observe</strong> cycle.
+            Skills (Chapter 02) are the tools. The loop is who picks the next tool.
+            The orchestrator and policy (later) still own the real world.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>1. Where you are in the course</h2>
+        <table>
+          <thead>
+            <tr><th>Chapter</th><th>You built / learned</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="concept-cognition-model-adapter.html">01 Cognition</a></td>
+              <td><code>createModel</code> / LM Studio / fail-loud</td>
+              <td>How to talk to the brain</td>
+            </tr>
+            <tr>
+              <td><a href="02-structured-skill.html">02 Structured skill</a></td>
+              <td>Zod contracts; <code>planContent</code> works; pipeline smoke OK</td>
+              <td>Typed tools (capabilities)</td>
+            </tr>
+            <tr>
+              <td><strong>03 Agent loop</strong></td>
+              <td>Adaptive multi-step cognition</td>
+              <td>Who chooses the next tool</td>
+            </tr>
+            <tr>
+              <td><a href="04-durable-runs.html">04 Durable runs</a></td>
+              <td>Persist each step</td>
+              <td>Observability of the loop</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          You already have a working <strong>pipeline</strong>
+          (<code>server/src/skills/pipeline.js</code>): plan → caption → media → review.
+          That is valuable and stays in the repo. Chapter 03 adds a <em>different</em>
+          control pattern — not a replacement you must delete.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>2. Pipeline vs agent loop (the core distinction)</h2>
+
+        <h3>2.1 Fixed pipeline (what you smoke-tested)</h3>
+        <pre><code>runContentPipeline(topic):
+  plan    = planContent(topic)           # always 1st
+  caption = writeCaption(plan)           # always 2nd
+  media   = generateMediaPrompts(...)    # always 3rd
+  review  = reviewPost(...)              # always 4th
+  return merge(...)</code></pre>
+        <p>
+          <strong>Pros:</strong> predictable latency, easy to debug, good default for Instagram drafts.<br />
+          <strong>Cons:</strong> cannot skip, reorder, or retry one step without you changing code.
+        </p>
+
+        <h3>2.2 Agent loop (ReAct lite)</h3>
+        <pre><code>runAgent(goal):
+  history = [system, user(goal)]
+  loop while under budget:
+    decision = model.chooseTool(history)   # { tool, args }
+    result   = execute(decision)
+    history.append(observation(result))
+    if decision.tool == "finish":
+      return decision.args.draft
+  fail loudly (max steps / timeout)</code></pre>
+        <p>
+          <strong>Pros:</strong> adaptive — retry plan, skip optional steps, react to errors.<br />
+          <strong>Cons:</strong> can wander; <strong>must</strong> have step/time budgets; harder to test.
+        </p>
+
+        <div class="card-grid two">
+          <div class="card">
+            <h3>Use a pipeline when…</h3>
+            <ul>
+              <li>The path is known (your IG post production)</li>
+              <li>You want stable demos and evals</li>
+              <li>Latency must be bounded tightly</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Use a loop when…</h3>
+            <ul>
+              <li>The model must decide among tools</li>
+              <li>Recovery/retry paths vary</li>
+              <li>You’re learning “agentic” behavior</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Product advice for this repo</strong>
+          <p style="margin:0">
+            Keep the pipeline as the default <code>agent-run</code> path for reliable drafts.
+            Build the loop as a parallel learning runtime (and later an optional mode).
+            Do not throw away the pipeline to “be more agentic.”
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>3. ReAct in plain language</h2>
+        <p>
+          <strong>ReAct</strong> = Reason + Act. The model does not only answer in prose.
+          It repeatedly:
+        </p>
+        <ol>
+          <li><strong>Reasons</strong> about the goal and what it has seen so far</li>
+          <li><strong>Acts</strong> by calling a named tool with arguments</li>
+          <li><strong>Observes</strong> the tool’s return value</li>
+          <li>Repeats until it calls a special stop tool (<code>finish</code>) or hits a budget</li>
+        </ol>
+        <p>
+          In our design, “reason” is usually implicit inside a <strong>structured decision</strong>
+          (JSON: which tool + args), not a long chain-of-thought essay you have to parse.
+          That matches Chapter 02: contracts over vibes.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>4. What is a tool?</h2>
+        <p>
+          A <strong>tool</strong> is a <em>named capability the agent is allowed to call</em> —
+          with clear inputs and outputs — so it can <strong>do something</strong> instead of
+          only writing text.
+        </p>
+        <p><strong>One line:</strong> tool = function the model can invoke by name (usually with a schema), then see the result.</p>
+
+        <h3>4.1 Skill vs tool vs model vs side effect</h3>
+        <table>
+          <thead>
+            <tr><th>Term</th><th>Meaning</th><th>Your example</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Skill</strong></td>
+              <td>Domain capability you authored</td>
+              <td><code>planContent</code> in <code>content-planning.js</code></td>
+            </tr>
+            <tr>
+              <td><strong>Tool</strong></td>
+              <td>That capability <em>registered for the agent loop</em> under a name</td>
+              <td><code>content_planning</code> → calls <code>planContent</code></td>
+            </tr>
+            <tr>
+              <td><strong>Model</strong></td>
+              <td>Chooses which tool / writes structured JSON</td>
+              <td>Gemma via <code>createModel</code></td>
+            </tr>
+            <tr>
+              <td><strong>Side effect / API</strong></td>
+              <td>Real world (IG publish) — not a free agent tool without policy</td>
+              <td>Graph publish</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><strong>Rule:</strong> skill is the implementation; tool is how the loop exposes it.</p>
+
+        <h3>4.2 Shape of a tool</h3>
+        <pre><code>name:  content_planning
+args:  { topic: string }           ← contract (Zod / JSON schema)
+run:   planContent(args)           ← your code
+out:   { hook, angle, format, … }  ← observation back to the model
+
+# Special stop tool (Chapter 03):
+name:  finish
+args:  { draft: object }
+run:   stop the loop and return the draft</code></pre>
+        <p>
+          Without tools, the model can only <strong>talk</strong>.
+          With tools, it can <strong>act</strong>, <strong>observe</strong>, then decide again.
+        </p>
+
+        <h3>4.3 Good tools (examples)</h3>
+        <table>
+          <thead>
+            <tr><th>Tool</th><th>Contract</th><th>Why it’s good</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>content_planning</code></td>
+              <td><code>{ topic }</code> → plan JSON</td>
+              <td>One job, clear schema, pure (no DB/IG)</td>
+            </tr>
+            <tr>
+              <td><code>caption_writing</code></td>
+              <td><code>{ hook, angle, format }</code> → caption JSON</td>
+              <td>Small, typed, no side effects</td>
+            </tr>
+            <tr>
+              <td><code>media_search</code> <em>(later)</em></td>
+              <td><code>{ query }</code> → candidate URLs/licenses</td>
+              <td>Returns <strong>data</strong>; download/publish stay behind policy</td>
+            </tr>
+            <tr>
+              <td><code>finish</code></td>
+              <td><code>{ draft }</code> → stop</td>
+              <td>Explicit stop — better than hoping the model says “I’m done”</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.4 Bad tools (examples)</h3>
+        <table>
+          <thead>
+            <tr><th>Tool</th><th>Why it’s bad</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>do_everything_for_instagram({ topic })</code> → “ok I posted it”</td>
+              <td>God-tool: plans + writes + uploads + publishes; bypasses approval; untestable</td>
+            </tr>
+            <tr>
+              <td><code>publish_now</code> exposed directly to the agent</td>
+              <td>Irreversible side effect with no policy/HITL; model can call it when confused</td>
+            </tr>
+            <tr>
+              <td><code>run_sql({ query })</code></td>
+              <td>Unbounded power; one bad string wrecks source of truth</td>
+            </tr>
+            <tr>
+              <td><code>ask_model_unstructured({ prompt })</code> → free-form string</td>
+              <td>No contract — forces regex parsing; breaks reliable observations</td>
+            </tr>
+            <tr>
+              <td><code>maybe_plan_or_publish({ vibe: "viral" })</code></td>
+              <td>No schema, no single job; output shape unpredictable</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.5 Quick test: is this tool good?</h3>
+        <table>
+          <thead>
+            <tr><th>Question</th><th>Good</th><th>Bad</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>One clear job?</td>
+              <td>Yes</td>
+              <td>“Handle the post”</td>
+            </tr>
+            <tr>
+              <td>Typed in/out?</td>
+              <td>Zod / JSON</td>
+              <td>Free text</td>
+            </tr>
+            <tr>
+              <td>Side effects?</td>
+              <td>None, or tightly gated</td>
+              <td>Publish / delete / email</td>
+            </tr>
+            <tr>
+              <td>Safe if called twice?</td>
+              <td>Mostly yes</td>
+              <td>Double-posts</td>
+            </tr>
+            <tr>
+              <td>Callable from tests without IG?</td>
+              <td>Yes</td>
+              <td>Needs live credentials</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout notes">
+          <strong class="label">Rule of thumb</strong>
+          <p style="margin:0">
+            Good tools return <strong>artifacts or lookups</strong>.
+            Bad tools <strong>mutate the world</strong> or return <strong>mush</strong>.
+            If the agent can call it by name and get a structured result back into the loop, it’s a tool —
+            design that surface carefully.
+          </p>
+        </div>
+
+        <h3>4.6 How does anything know a tool’s parameters?</h3>
+        <p>
+          <strong>Simple answer:</strong> nothing magically introspects the tools.
+          We <em>tell</em> the model in the prompt; the tool code <em>enforces</em> args when it runs.
+        </p>
+        <p>
+          Note: in Chapter 03 this is the <strong>agent loop</strong> (<code>runAgent</code>), not Express.
+          <code>server.js</code> still uses the fixed pipeline by default and does not yet know tool parameters.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Who</th><th>How they “know” parameters</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Model</strong></td>
+              <td>Reads <code>TOOL_DESCRIPTIONS</code> text pasted into the system prompt (e.g. <code>args: { topic: string }</code>)</td>
+            </tr>
+            <tr>
+              <td><strong>Tool function</strong></td>
+              <td>Hard-coded checks / Zod when called (e.g. require <code>args.topic</code>, parse <code>draft</code>)</td>
+            </tr>
+            <tr>
+              <td><strong>Express orchestrator</strong></td>
+              <td>Does not — not wired to the loop yet</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre><code># 1) YOU write descriptions
+TOOL_DESCRIPTIONS.content_planning =
+  "… args: { topic: string }. Returns hook, angle, …"
+
+# 2) Loop puts them in the prompt → MODEL returns JSON
+{ "tool": "content_planning", "args": { "topic": "5-minute morning routine" } }
+
+# 3) Tool validates when it runs
+if !args.topic: throw "content_planning requires args.topic"</code></pre>
+        <p>
+          <strong>One sentence:</strong> the loop doesn’t discover APIs like a database —
+          you describe args in the prompt; the tool code enforces them when called.
+          (Same idea as ChatGPT function calling.)
+        </p>
+
+        <h3>4.7 Who calls the tools, and how?</h3>
+        <p>
+          <strong>Your Node code calls the tools — not the LLM.</strong>
+          The model only <em>chooses</em>. The loop <em>executes</em>.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Who</th><th>Job</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Model (e.g. Gemma)</strong></td>
+              <td>Returns JSON: next tool name + args</td>
+            </tr>
+            <tr>
+              <td><strong><code>runAgent</code> (loop.js)</strong></td>
+              <td>Reads that choice, then calls the JS function</td>
+            </tr>
+            <tr>
+              <td><strong>Tool function</strong></td>
+              <td>Does the work (<code>planContent</code>, or validate <code>finish</code>)</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre><code>1. loop builds prompt (tools + goal + history)
+2. loop asks model → gets { tool, args }
+3. loop runs:  tools[decision.tool](decision.args)   ← real function call
+4. loop saves result in history
+5. repeat until finish or budget</code></pre>
+        <p>In code that is literally:</p>
+        <pre><code>const fn = tools[decision.tool];          // e.g. tools["content_planning"]
+const data = await fn(decision.args);     // → runContentPlanning → planContent</code></pre>
+        <p>
+          <strong>Analogy:</strong> model = customer pointing at a menu item;
+          loop = waiter; tool = kitchen. The customer doesn’t cook.
+        </p>
+        <p>
+          <strong>Who starts it today?</strong> You, via <code>agent:ping</code> →
+          <code>runAgent({ goal, topic })</code>. Later Express or MCP can call
+          <code>runAgent</code> the same way — still the loop calls tools; the model only chooses.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>5. Anatomy of the loop</h2>
+
+        <h3>5.1 Goal</h3>
+        <p>
+          A short natural-language objective, e.g.
+          <em>“Draft an Instagram reel concept about a 5-minute morning routine.”</em>
+          The loop does not own brand files or DB rows; the caller may inject brand text into the goal/system prompt.
+        </p>
+
+        <h3>5.2 Tool registry</h3>
+        <p>
+          A map from tool name → function. Chapter 03’s <strong>minimal</strong> registry
+          (on purpose, so you can see choices clearly):
+        </p>
+        <pre><code>tools = {
+  content_planning: (args) => planContent(args),
+  // returns Zod-validated plan: hook, angle, format, …
+
+  finish: (args) => {
+    // args.draft = final artifact the agent claims is done
+    return { done: true, draft: args.draft }
+  }
+}</code></pre>
+        <p>
+          Later you can register <code>caption_writing</code>, <code>image_reel_generation</code>,
+          <code>post_review</code> the same way — each already a pure structured skill.
+        </p>
+        <p><strong>Rule:</strong> every tool returns data. None of them publish to Instagram or flip <code>posts.status</code> to <code>published</code>.</p>
+
+        <h3>5.3 Decision step (model as router)</h3>
+        <pre><code>DecisionSchema = {
+  tool: "content_planning" | "finish",
+  args: object,           # tool-specific
+  thought: string?        # optional short rationale for logs
+}
+
+decision = createStructuredModel(DecisionSchema).invoke("""
+  Goal: {goal}
+  History of observations: {history}
+  Available tools: {toolDescriptions}
+  Choose exactly one next tool.
+""")</code></pre>
+        <p>
+          Same LM Studio path as Chapter 02 (<code>promptJson</code> + Zod).
+          The model is not free-form chatting with the user here — it is emitting a
+          <strong>machine decision</strong>.
+        </p>
+
+        <h3>5.4 Act + observe</h3>
+        <pre><code>if decision.tool not in tools:
+  observation = { ok: false, error: "unknown tool" }
+else if decision.tool == "finish":
+  return decision.args.draft   # success stop
+else:
+  try:
+    data = tools[decision.tool](decision.args)
+    observation = { ok: true, tool: decision.tool, data }
+  catch err:
+    observation = { ok: false, tool: decision.tool, error: err.message }
+
+history.append(observation)
+# normalize: keep observations compact JSON, not megabyte dumps</code></pre>
+
+        <h3>5.5 Stop conditions</h3>
+        <table>
+          <thead>
+            <tr><th>Stop</th><th>Meaning</th><th>Caller should…</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>finish</code> tool</td>
+              <td>Success — draft ready</td>
+              <td>Hand draft to orchestrator</td>
+            </tr>
+            <tr>
+              <td>Max steps</td>
+              <td>Model never finished</td>
+              <td>Fail loud (no fake draft)</td>
+            </tr>
+            <tr>
+              <td>Timeout</td>
+              <td>Wall clock exceeded</td>
+              <td>Fail loud</td>
+            </tr>
+            <tr>
+              <td>Repeated tool errors</td>
+              <td>Optional policy</td>
+              <td>Escalate / fail</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>6. Budgets are architecture</h2>
+        <p>
+          Without budgets, “agentic” means “might run forever.” Budgets are not polish —
+          they are how you keep cognition safe on a laptop GPU and in production.
+        </p>
+        <pre><code>MAX_STEPS   = 8          # course default
+TIMEOUT_MS  = 60_000     # wall clock for the whole loop
+# later: max tokens / max $ per run</code></pre>
+        <table>
+          <thead>
+            <tr><th>Budget</th><th>Failure mode if missing</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Max steps</td>
+              <td>Infinite <code>content_planning</code> spam</td>
+            </tr>
+            <tr>
+              <td>Timeout</td>
+              <td>Hung local model blocks the process</td>
+            </tr>
+            <tr>
+              <td>Token/cost (later)</td>
+              <td>Cloud bill or LM Studio thrash</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout notes">
+          <strong class="label">Same ethos as Chapter 01</strong>
+          <p style="margin:0">
+            Hitting a budget is a <strong>clear failure</strong>, not a trigger to invent canned
+            Instagram copy. Fake success teaches the wrong lesson.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>7. Full pseudo code (minimal Ch.03 agent)</h2>
+        <pre><code>function runAgent({ goal, maxSteps = 8, timeoutMs = 60_000 }):
+  started = now()
+  history = []
+  tools = {
+    content_planning: (args) => planContent(args),
+    finish: null   # handled specially
+  }
+
+  system = """
+    You are a drafting agent for Instagram concepts.
+    Tools:
+      - content_planning({ topic }): produce hook/angle/format/…
+      - finish({ draft }): end the run with the final draft object
+    Prefer calling content_planning once, then finish with a draft
+    built from that plan. Do not invent tools.
+  """
+
+  for step in 1 .. maxSteps:
+    if now() - started > timeoutMs:
+      throw Error("Agent timeout")
+
+    decision = chooseTool(system, goal, history)  # structured
+    log("step", step, decision.tool, decision.args)
+
+    if decision.tool == "finish":
+      validateDraft(decision.args.draft)  # optional Zod
+      return { ok: true, draft: decision.args.draft, steps: step }
+
+    if decision.tool not in tools or decision.tool == "finish":
+      history.push({ ok: false, error: "unknown or invalid tool" })
+      continue
+
+    try:
+      data = tools[decision.tool](decision.args)
+      history.push({ ok: true, tool: decision.tool, data })
+    catch err:
+      history.push({ ok: false, tool: decision.tool, error: err.message })
+
+  throw Error("Agent exceeded MAX_STEPS without finish")</code></pre>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>8. Example trace (what you should see)</h2>
+        <pre><code>goal: "Draft an IG reel about a 5-minute morning routine"
+
+step 1  tool=content_planning  args={ topic: "5-minute morning routine" }
+        observe ok: { hook: "…", format: "reel", alt_hooks: [...] }
+
+step 2  tool=finish  args={ draft: { hook, angle, format, … } }
+        → return draft
+
+# Bad trace (hits budget):
+step 1  content_planning …
+step 2  content_planning …   # model stuck retrying
+…
+step 8  content_planning …
+→ Error: Agent exceeded MAX_STEPS without finish</code></pre>
+        <p>
+          Printing each step is the Chapter 03 form of observability.
+          Chapter 04 will write those steps into <code>run_events</code> instead of only the console.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>9. What the loop must never do</h2>
+        <ul>
+          <li>Call Instagram Graph / publish</li>
+          <li>Mark a post <code>approved</code> or <code>published</code></li>
+          <li>Store OAuth secrets</li>
+          <li>Bypass policy “because the model said so”</li>
+          <li>Swallow errors and return canned captions by default</li>
+        </ul>
+        <p>
+          Killing the process mid-loop must leave the database untouched
+          (Chapter 03 checkpoint) — no world side effects yet.
+        </p>
+        <p>
+          See <a href="concept-policy-vs-auth.html">Policy vs operator auth</a>:
+          the loop is cognition; legality and identity are authority.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>10. LangChain vs LangGraph (decision for this lesson)</h2>
+        <table>
+          <thead>
+            <tr><th></th><th>Choice for Ch.03</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Skills / structured I/O</td>
+              <td><strong>LangChain</strong> (already in repo)</td>
+            </tr>
+            <tr>
+              <td>Loop engine</td>
+              <td><strong>Hand-rolled</strong> <code>for</code> loop (learning clarity)</td>
+            </tr>
+            <tr>
+              <td>LangGraph</td>
+              <td>Optional later if you need graph branching, checkpoints, HITL interrupts inside the graph</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Do not rewrite skills into LangGraph nodes just to say you use LangGraph.
+          The orchestrator remains the product source of truth either way.
+        </p>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>11. How this will plug into the orchestrator (preview)</h2>
+        <pre><code># Today
+POST /agent-run → runContentPipeline(topic) → update post
+
+# Later (optional mode)
+POST /agent-run → runAgent({ goal: topic }) → update post
+                → (Ch.04) each step also appended to run_events
+
+# Never
+runAgent → instagram.publish()   # authority forbids this</code></pre>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>12. Build checklist (when you implement)</h2>
+        <ol>
+          <li>Add <code>server/src/agent/loop.js</code> with the minimal two-tool registry.</li>
+          <li>Reuse <code>createStructuredModel</code> for the decision schema.</li>
+          <li>Reuse <code>planContent</code> as <code>content_planning</code>.</li>
+          <li>Log every step to the console.</li>
+          <li>Enforce <code>MAX_STEPS</code> and <code>TIMEOUT_MS</code>.</li>
+          <li>Add <code>agent:ping</code> script: one goal → printed trace → draft or clear error.</li>
+          <li>Do not wire publish or change default <code>agent-run</code> until you choose to.</li>
+        </ol>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <ul style="margin:0">
+            <li>You can watch the model choose <code>content_planning</code> then <code>finish</code>.</li>
+            <li>Max-steps without <code>finish</code> fails loudly.</li>
+            <li>Killing the process mid-run does not corrupt external systems.</li>
+          </ul>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            <code>server/src/agent/{loop,tools,schemas}.js</code> +
+            <code>pnpm --filter server agent:ping</code>.
+            Default <code>POST /agent-run</code> still uses the fixed pipeline — loop is parallel/learning path.
+          </p>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>13. Four notes (answer key)</h2>
+        <ul class="questions">
+          <li>
+            <strong>What problem does this layer solve?</strong>
+            Adaptive multi-step progress toward a goal when the next action is not hardcoded.
+          </li>
+          <li>
+            <strong>What is allowed to call it?</strong>
+            Orchestrator, local scripts, later MCP — with the same tool purity rules.
+          </li>
+          <li>
+            <strong>What must it never do?</strong>
+            Irreversible world actions; run without budgets; fake success on failure.
+          </li>
+          <li>
+            <strong>How do I observe and test it?</strong>
+            Step logs now; durable <code>run_events</code> in Chapter 04; force budget failures on purpose.
+          </li>
+        </ul>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <h2>14. What’s next after the loop</h2>
+        <ol>
+          <li><a href="04-durable-runs.html">04 Durable runs</a> /
+            <a href="concept-durable-runs.html">deep dive</a> — persist the trace (real observability).</li>
+          <li>Optionally expand the tool registry to all four skills.</li>
+          <li>Authority: <a href="06-policy-gate.html">policy</a> + operator auth before real publish.</li>
+        </ol>
+
+        <div class="callout learn">
+          <strong class="label">Related lessons</strong>
+          <p style="margin:0">
+            Short lesson card: <a href="03-agent-loop.html">03 Agent loop</a> ·
+            Prior deep dive: <a href="concept-cognition-model-adapter.html">Cognition model adapter</a> ·
+            Authority split: <a href="concept-policy-vs-auth.html">Policy vs operator auth</a>
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

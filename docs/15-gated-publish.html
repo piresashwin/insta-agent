@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>15 · Gated publish — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="15"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 4 · Lesson 15</p>
+        <h1>Gated publish</h1>
+        <p class="lead">One orchestrated publish path: policy + approval + media ready → Graph create/publish with backoff.</p>
+        <div class="meta-row"><span class="chip">Time · 1–2 days</span></div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Idempotency keys; 429 backoff</li>
+            <li>Container create vs publish steps</li>
+            <li>Map Graph errors to known <code>failed</code> state</li>
+            <li>Append to <code>learn/posts.json</code> after success</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li>Collapse stub step endpoints into one <code>publish</code></li>
+            <li>Require copy approve + <strong>Approve media</strong> (R2) + policy allow</li>
+            <li>Audit event on success/failure; never leave status unknown</li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">Publish denied unless status is <code>staged</code> with R2 HTTPS URLs. Success or <code>failed</code> with a reason.</p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <ul style="margin:0">
+            <li><code>POST /approve-media</code> — bake PNGs → Cloudflare R2 → <code>staged</code></li>
+            <li><code>POST /publish-instagram</code> — human only; requires <code>staged</code></li>
+            <li>Carousel: Graph children + parent <code>CAROUSEL</code></li>
+            <li>Status: <code>staged → pending_upload → publishing → published|failed</code></li>
+            <li>Agent publish still denied by policy</li>
+          </ul>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Product path</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap">draft → agent-run → approve → Pexels → compose canvas → approve-media (R2) → publish-instagram
+# Needs: connected IG token + R2_* env for public HTTPS media URLs</pre>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>

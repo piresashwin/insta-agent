@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>06 · Policy gate — Agentic Systems Course</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-nav data-current="06"></aside>
+    <main class="content">
+      <article class="article">
+        <p class="kicker">Week 2 · Lesson 06</p>
+        <h1>Policy gate</h1>
+        <p class="lead">
+          Safety core: capability checks before any world mutation. Policy answers
+          “is this (actor, action, resource) allowed?” — not “who is calling?”
+          Status edges stay in Lesson 05; operator auth comes later.
+        </p>
+        <div class="meta-row">
+          <span class="chip">Time · 1 day</span>
+          <span class="chip warn">Critical</span>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Learn</strong>
+          <ul style="margin:0">
+            <li>Actor + action + resource authorization</li>
+            <li>Allowlists for irreversible actions</li>
+            <li>Deny must be logged for audit</li>
+            <li>How 06 stacks on top of <code>transitionPost</code> (05)</li>
+          </ul>
+        </div>
+
+        <div class="callout build">
+          <strong class="label">Build</strong>
+          <ol style="margin:0">
+            <li><code>policy.can(actor, action, resource)</code></li>
+            <li>Examples: <code>agent</code> may <code>draft</code> / <code>media.search</code>; only human may <code>instagram.publish</code></li>
+            <li>World-mutating routes call policy first; deny → <code>policy_deny</code> + <code>needs_human</code></li>
+          </ol>
+        </div>
+
+        <div class="callout check">
+          <strong class="label">Checkpoint</strong>
+          <p style="margin:0">
+            Even if the model outputs “publish now”, the tool refuses without approval —
+            and a deny event is stored.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Built in this repo</strong>
+          <p style="margin:0">
+            <code>server/src/policy.ts</code> owns <code>can</code> / <code>assertAllowed</code> /
+            durable <code>policy_deny</code>.
+            <code>server/src/server.ts</code> calls policy before agent-run, approve,
+            request-changes, publish, and published.
+            Checkpoint surface: <code>POST /api/posts/:id/instagram-publish</code>
+            with <code>{"as":"agent"}</code>.
+          </p>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Verify (curl)</strong>
+          <pre style="margin:0.5rem 0 0; white-space:pre-wrap">curl -s -X POST localhost:3001/api/posts \
+  -H 'Content-Type: application/json' -d '{"topic":"policy check"}'
+# use returned id:
+curl -s -X POST localhost:3001/api/posts/ID/instagram-publish \
+  -H 'Content-Type: application/json' -d '{"as":"agent"}'
+# expect: 403 Policy deny … (run_id=N)
+
+curl -s localhost:3001/api/runs/N
+# expect: kind "policy", event type "policy_deny", status "needs_human"</pre>
+        </div>
+
+        <div class="callout learn">
+          <strong class="label">Detailed lesson</strong>
+          <p style="margin:0">
+            Lesson mapped to code, stacked 05+06 path, allowlists, durable deny,
+            checkpoint walkthrough, four notes answered —
+            <a href="concept-policy-gate.html">Policy gate (deep dive)</a>.
+            Companion: <a href="concept-policy-vs-auth.html">Policy vs auth</a> ·
+            <a href="concept-safety.html">Safety &amp; compliance</a>.
+          </p>
+        </div>
+
+        <div class="callout notes">
+          <strong class="label">Four notes</strong>
+          <ul class="questions">
+            <li>What problem does this layer solve?</li>
+            <li>What is allowed to call it?</li>
+            <li>What must it never do?</li>
+            <li>How do I observe and test it?</li>
+          </ul>
+          <p style="margin:0.75rem 0 0">
+            Answers are written out in the
+            <a href="concept-policy-gate.html#8-four-notes-answered">deep dive §8</a>.
+          </p>
+        </div>
+
+        <nav class="pager" data-pager></nav>
+      </article>
+    </main>
+  </div>
+  <script src="nav.js"></script>
+</body>
+</html>
