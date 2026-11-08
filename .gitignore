@@ -4,6 +4,7 @@ dist-ssr/
 .pnpm-store/
 .wrangler/
 *.local
+*.tsbuildinfo
 .env
 .env.local
 .env.*.local
@@ -15,6 +16,10 @@ server/*.db-wal
 
 # Downloaded stock media (Lesson 13)
 server/assets/posts/
+
+# Eval harness output + LLM response cache
+server/evals/reports/
+server/evals/.cache/
 
 # Logs / OS
 *.log

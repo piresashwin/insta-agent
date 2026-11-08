@@ -1,51 +1,71 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
-
 ## Platform
 
-web
+Web (desktop-first, mobile-readable)
 
 ## Users
 
-Solo operators and small content teams drafting Instagram posts with a local LM Studio model. They sit at a desk, review machine-written hooks/captions, approve or request changes, and later publish. Primary job on this surface: triage the post queue and decide approve / revise / regenerate.
+Solo operators and small content teams building an Instagram page for a niche.
+They sit at a desk to review and approve; they check the inbox from a phone.
+Primary job: triage the post queue (approve / revise / regenerate) and monitor performance.
 
-## Product Purpose
+## Product purpose
 
-Plan, draft, and stage Instagram content through a skill pipeline (plan → caption → media prompts → review), with durable agent runs and human approval before anything publishes. Success: an operator can create a topic, run the agent, inspect the draft and run timeline, then approve — without leaving the dashboard.
+Plan, draft, and stage Instagram content through a skill pipeline
+(research → plan → caption → media → review), with durable jobs, human approval,
+and direct publishing. Success: an operator — or an MCP agent acting on their behalf —
+can bootstrap a niche page, run the pipeline, review the draft, and publish,
+all from one surface.
 
 ## Positioning
 
-Cognition (local OpenAI-compatible model + LangChain skills) is separated from authority (operator approve / request-changes). The dashboard is the HITL control surface for that split, not a generic social scheduler.
+Cognition (LLM skills via Runware) is separated from authority (human approve / publish).
+The dashboard is the HITL control surface for that split, not a generic social scheduler.
+MCP tools are a thin adapter over the same API, so external agents get identical guarantees.
 
-## Operating Context
+## Routes
 
-Monorepo: React/Vite client + Express/SQLite server. Dev: Vite on :5173 proxied to API :3001. LM Studio must be running for agent-run. Week-1 scope: posts, agent-run, approve, request-changes, runs timeline, Instagram connection list (OAuth later). Publish is stubbed.
+| Route | Screen |
+|---|---|
+| `/inbox` | Review queue (default) |
+| `/posts/:id` | Post review (copy, media, performance) |
+| `/calendar` | Weekly grid with proposals |
+| `/studio/new` · `/studio/:id` | Creative studio (Phase 3) |
+| `/insights` | Account and post performance (Phase 4) |
+| `/brands/:id` | Brand profile editor |
+| `/activity` | Actor-attributed event feed (Phase 2) |
+| `/settings` | Accounts · Models · Budget · Advanced |
+| `/setup` | Onboarding checklist |
 
-## Capabilities and Constraints
+## Capabilities
 
-- Live API: posts CRUD lifecycle, agent-run with `run_id`, approve, request-changes, runs + events, Instagram admin list
-- No real Meta Graph publish yet
-- Operator identity is local-dev stub until auth chapter
-- Agent-run can take 30–60s; UI must show generating state
+- Posts CRUD, full lifecycle (draft → Needs OK → approved → media → staged → live)
+- Agent pipeline runs with durable jobs and SSE events
+- Human approve / request-changes with auto-save before action
+- Brand profiles with voice, visual identity and rubric
+- Calendar with week proposals
+- Instagram OAuth and publishing
+- Budget tracking (`spend_ledger`) and `/api/health`
+- MCP server (stdio) exposing the same API surface
 
-## Brand Commitments
+## Technical constraints
 
-Product name: Instagram Content Agent (working title). No locked visual brand assets yet.
+- Local-first: stdio MCP, SQLite (`DB_PATH`), single operator
+- LLMs via Runware (default) — writer Claude Sonnet 5.5, judge Gemini 3.8 Flash
+- Images via Runware imageInference (Seedream 5.0 Flash default)
+- Reels: keyframe image approval → image-to-video (Phase 2)
+- Budget: $10/month cap enforced from Phase 2; spend tracked from Phase 0
 
-## Evidence on Hand
+## Product principles
 
-- Working API and SQLite-backed posts/runs
-- Dashboard wired to `client/src/api.ts`
-- No marketing copy, customer logos, or real Instagram account gallery required for Week 1
+1. **Operator trust over spectacle** — real draft fields and run events, not vanity metrics.
+2. **Approval is the product moment** — pending drafts stay one click away; auto-save before every approval action.
+3. **Honest states** — empty queues, failed runs, and stubs are labeled as such.
+4. **Budget transparency** — every AI action shows its cost; a cap stops silent overspend.
+5. **Local-first cognition** — the UI never pretends a model is online when it isn't.
 
-## Product Principles
+## Accessibility
 
-1. Operator trust over spectacle — show real draft fields and run events, not vanity metrics.
-2. Approval is the product moment — pending drafts and decisions stay one click away.
-3. Honest states — empty queues, failed agent runs, and stub publish are labeled as such.
-4. Local-first cognition — the UI never pretends the model is online when it is not.
-
-## Accessibility & Inclusion
-
-Keyboard-reachable controls and readable contrast on the operator surface; no product-specific WCAG level locked yet.
+Keyboard-reachable controls, visible focus rings, Radix focus traps on dialogs.
+Contrast ≥4.5:1 for text, ≥3:1 for field outlines. Zero serious axe violations (target, Phase 5).

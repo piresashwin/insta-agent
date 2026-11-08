@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "name": "Maison Lume",
+    "niche": "Luxury minimalist skincare, clean formulations",
+    "audience": "Women 35–60 with discretionary income who value restraint and efficacy over trends",
+    "goals": "Convey quiet luxury and clinical credibility; drive considered first purchases",
+    "guide_md": "Elegant, spare, confident. French-inflected restraint. Ingredient science stated plainly, never shouted. No exclamation points.",
+    "pillars": [
+      { "name": "The edited routine", "notes": "Fewer, better steps" },
+      { "name": "Ingredient truth", "notes": "What actually works, at what concentration" },
+      { "name": "Ritual and patience", "notes": "Skin as a long game" }
+    ],
+    "voice": "Refined, unhurried, third-person and first-plural. Understated authority.",
+    "voiceRules": {
+      "do": ["State the active and its concentration", "Favor restraint", "Let white space speak"],
+      "dont": ["Use hype or urgency", "Make miracle claims", "Overpunctuate"],
+      "banned_words": ["miracle", "anti-aging cure", "instant", "flawless", "cheap"],
+      "emoji_policy": "none",
+      "person": "first_plural",
+      "caption_length": "medium",
+      "cta_styles": ["Discover the serum", "Begin the edited routine"]
+    },
+    "examples": [
+      {
+        "hook": "Three steps, done well, outperform ten done carelessly.",
+        "caption": "We formulate for restraint: a 10% vitamin C in the morning, a 0.3% retinol at night, a barrier cream between. Nothing extraneous. Skin rewards consistency, not accumulation.",
+        "hashtags": "#cleanskincare #minimalskincare #vitaminc #retinol #skinbarrier",
+        "what_works": "Quiet authority, specific actives and concentrations, no hype"
+      }
+    ],
+    "hashtagSets": [
+      { "name": "core", "tags": ["cleanskincare", "minimalskincare", "vitaminc", "retinol", "skinbarrier"], "use_always": true, "max_pick": 5 }
+    ],
+    "visualIdentity": {
+      "palette": { "primary": "#2b2622", "secondary": "#d8cfc2", "accent": "#a8906f", "background": "#f7f4ef" },
+      "typography": { "heading_font": "Cormorant", "body_font": "Nunito Sans" },
+      "shot_rules": { "must": ["editorial still life", "generous negative space", "soft shadow"], "avoid": ["clutter", "saturated color"] },
+      "layout_defaults": { "scrim": "none", "text_align": "center", "safe_margin": 10 },
+      "render_style": "editorial product still life, muted and luxurious",
+      "brand_mark": null
+    },
+    "rubric": {
+      "version": 1,
+      "criteria": [
+        { "id": "brand_fit", "target": "caption", "weight": 0.35, "description": "Refined restraint, specific actives, no hype or urgency" },
+        { "id": "hook_quiet", "target": "hook", "weight": 0.25, "description": "Hook is understated and confident, never salesy" },
+        { "id": "cta_elegant", "target": "cta", "weight": 0.15, "description": "CTA is an invitation, not a push" },
+        { "id": "visual_editorial", "target": "visual", "weight": 0.15, "description": "Editorial still life, negative space, muted" },
+        { "id": "hashtags_niche", "target": "hashtags", "weight": 0.1, "description": "Skincare tags with real search value" }
+      ]
+    },
+    "recentHooks": [
+      "Luxury is the absence of excess.",
+      "Your skin barrier is the only trend that matters."
+    ],
+    "maxSlides": 5,
+    "timezone": "Europe/Paris",
+    "backgroundStyle": "photo"
+  },
+  "topics": [
+    "Why a three-step routine beats a ten-step one",
+    "How to layer vitamin C and retinol",
+    "Reading a serum's concentration label",
+    "Repairing a compromised skin barrier",
+    "The case for fragrance-free formulations",
+    "Patience: what skin results actually take"
+  ],
+  "gold_posts": [
+    {
+      "topic": "How to layer vitamin C and retinol",
+      "hook": "Vitamin C in the morning. Retinol at night. Never the two at once.",
+      "caption": "They are both powerful, and both unnecessary to combine. Antioxidant protection by day, cellular renewal by night. Separated, they work with your skin's own rhythm.",
+      "format": "feed"
+    }
+  ],
+  "forbidden_terms": []
+}

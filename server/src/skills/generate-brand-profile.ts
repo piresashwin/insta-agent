@@ -8,6 +8,32 @@ import { createStructuredModel } from './model'
 
 const styleIds = BACKGROUND_STYLES.map((s) => s.id) as [string, ...string[]]
 
+const DAY_ENUM = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+
+function normalizeDay(raw: string): z.infer<typeof DAY_ENUM> | null {
+  const s = raw.trim().toLowerCase()
+  const aliases: Record<string, z.infer<typeof DAY_ENUM>> = {
+    mon: 'mon',
+    monday: 'mon',
+    tue: 'tue',
+    tues: 'tue',
+    tuesday: 'tue',
+    wed: 'wed',
+    wednesday: 'wed',
+    thu: 'thu',
+    thur: 'thu',
+    thurs: 'thu',
+    thursday: 'thu',
+    fri: 'fri',
+    friday: 'fri',
+    sat: 'sat',
+    saturday: 'sat',
+    sun: 'sun',
+    sunday: 'sun',
+  }
+  return aliases[s] || null
+}
+
 const BrandDraftSchema = z.object({
   name: z.string().describe('Short brand / account name'),
   niche: z.string(),
@@ -20,9 +46,24 @@ const BrandDraftSchema = z.object({
     .describe('Content pillars / recurring themes'),
   posts_per_week: z.number().int().min(1).max(14),
   preferred_days: z
-    .array(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']))
+    .array(z.string())
     .min(1)
-    .max(7),
+    .max(7)
+    .transform((days, ctx) => {
+      const out: Array<z.infer<typeof DAY_ENUM>> = []
+      for (const d of days) {
+        const n = normalizeDay(d)
+        if (!n) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Invalid day "${d}" — use mon…sun`,
+          })
+          return z.NEVER
+        }
+        if (!out.includes(n)) out.push(n)
+      }
+      return out
+    }),
   voice: z
     .string()
     .describe('Adjectives + do/don’t speaking rules for captions and hooks'),
@@ -34,6 +75,7 @@ const BrandDraftSchema = z.object({
     .describe('Visual style, lighting, must-include and must-avoid for images'),
   default_background_style: z.enum(styleIds as [typeof styleIds[0], ...typeof styleIds]),
   default_format: z.enum(['feed', 'reel', 'carousel']),
+  default_max_slides: z.number().min(2).max(7).optional().default(5),
   guide_md: z
     .string()
     .describe('Short markdown guide summarizing brand for the agent'),

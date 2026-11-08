@@ -6,11 +6,17 @@ import type {
   BrandPillar,
   BrandProfile,
   CalendarProposal,
+  ExamplePost,
+  FormatMix,
+  HashtagSet,
   Post,
   PostFormat,
+  VisualIdentity,
+  VoiceRules,
 } from '@instagram-agent/shared'
 import db from './db'
-import { ensureSlidesForFormat } from './slides'
+import { clampMaxSlides, ensureSlidesForFormat } from './slides'
+import { parseVisualIdentity } from './prompts/format-templates'
 
 export type BrandContext = {
   profile: BrandProfile | null
@@ -18,8 +24,11 @@ export type BrandContext = {
   briefMd: string
   voiceBrief: string
   visualBrief: string
+  visualIdentity: VisualIdentity
   backgroundStyle: string | null
   format: PostFormat | string | null
+  /** Effective max carousel slides for agent generation (2–7). */
+  maxSlides: number
 }
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
@@ -99,9 +108,38 @@ export type BrandProfileInput = {
   voice?: string | null
   examples?: string | null
   visual?: string | null
+  visual_identity?: string | VisualIdentity | null
+  format_mix?: string | FormatMix | null
   default_background_style?: string | null
   default_format?: string | null
+  default_max_slides?: number | null
   guide_md?: string | null
+  voice_rules?: string | VoiceRules | null
+  example_posts?: string | ExamplePost[] | null
+  hashtag_sets?: string | HashtagSet[] | null
+  timezone?: string | null
+}
+
+function serializeJsonField(v: string | object | null | undefined): string | null {
+  if (v == null) return null
+  if (typeof v === 'string') return v
+  return JSON.stringify(v)
+}
+
+export function parseFormatMix(raw: string | null | undefined): FormatMix | null {
+  if (!raw?.trim()) return null
+  try {
+    return JSON.parse(raw) as FormatMix
+  } catch {
+    return null
+  }
+}
+
+function clampBrandMaxSlides(n: number | null | undefined): number | null {
+  if (n == null || n === ('' as unknown)) return null
+  const v = Number(n)
+  if (!Number.isFinite(v)) return null
+  return Math.min(7, Math.max(2, Math.round(v)))
 }
 
 function serializePillars(v: BrandProfileInput['pillars']): string | null {
@@ -123,9 +161,11 @@ export function createBrandProfile(input: BrandProfileInput): BrandProfile {
     .prepare(
       `INSERT INTO brand_profiles (
         name, niche, audience, goals, pillars, posts_per_week, preferred_days,
-        voice, examples, visual, default_background_style, default_format, guide_md,
+        voice, examples, visual, visual_identity, format_mix,
+        default_background_style, default_format, default_max_slides, guide_md,
+        voice_rules, example_posts, hashtag_sets, timezone,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
     .run(
       name,
@@ -138,9 +178,16 @@ export function createBrandProfile(input: BrandProfileInput): BrandProfile {
       input.voice ?? null,
       input.examples ?? null,
       input.visual ?? null,
+      serializeJsonField(input.visual_identity),
+      serializeJsonField(input.format_mix),
       input.default_background_style ?? null,
       input.default_format ?? 'feed',
-      input.guide_md ?? null
+      clampBrandMaxSlides(input.default_max_slides) ?? 5,
+      input.guide_md ?? null,
+      serializeJsonField(input.voice_rules),
+      serializeJsonField(input.example_posts),
+      serializeJsonField(input.hashtag_sets),
+      input.timezone ?? 'UTC'
     )
   return getBrandProfile(Number(info.lastInsertRowid))!
 }
@@ -169,20 +216,47 @@ export function updateBrandProfile(
     voice: patch.voice !== undefined ? patch.voice : existing.voice,
     examples: patch.examples !== undefined ? patch.examples : existing.examples,
     visual: patch.visual !== undefined ? patch.visual : existing.visual,
+    visual_identity:
+      patch.visual_identity !== undefined
+        ? serializeJsonField(patch.visual_identity)
+        : existing.visual_identity,
+    format_mix:
+      patch.format_mix !== undefined
+        ? serializeJsonField(patch.format_mix)
+        : existing.format_mix,
     default_background_style:
       patch.default_background_style !== undefined
         ? patch.default_background_style
         : existing.default_background_style,
     default_format:
       patch.default_format !== undefined ? patch.default_format : existing.default_format,
+    default_max_slides:
+      patch.default_max_slides !== undefined
+        ? clampBrandMaxSlides(patch.default_max_slides)
+        : existing.default_max_slides,
     guide_md: patch.guide_md !== undefined ? patch.guide_md : existing.guide_md,
+    voice_rules:
+      patch.voice_rules !== undefined
+        ? serializeJsonField(patch.voice_rules)
+        : existing.voice_rules,
+    example_posts:
+      patch.example_posts !== undefined
+        ? serializeJsonField(patch.example_posts)
+        : existing.example_posts,
+    hashtag_sets:
+      patch.hashtag_sets !== undefined
+        ? serializeJsonField(patch.hashtag_sets)
+        : existing.hashtag_sets,
+    timezone: patch.timezone !== undefined ? (patch.timezone ?? 'UTC') : (existing.timezone || 'UTC'),
   }
   if (!next.name) throw new Error('Brand name is required')
   db.prepare(
     `UPDATE brand_profiles SET
       name = ?, niche = ?, audience = ?, goals = ?, pillars = ?, posts_per_week = ?,
       preferred_days = ?, voice = ?, examples = ?, visual = ?,
-      default_background_style = ?, default_format = ?, guide_md = ?,
+      visual_identity = ?, format_mix = ?,
+      default_background_style = ?, default_format = ?, default_max_slides = ?, guide_md = ?,
+      voice_rules = ?, example_posts = ?, hashtag_sets = ?, timezone = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?`
   ).run(
@@ -196,9 +270,16 @@ export function updateBrandProfile(
     next.voice,
     next.examples,
     next.visual,
+    next.visual_identity,
+    next.format_mix,
     next.default_background_style,
     next.default_format,
+    next.default_max_slides,
     next.guide_md,
+    next.voice_rules,
+    next.example_posts,
+    next.hashtag_sets,
+    next.timezone,
     Number(id)
   )
   return getBrandProfile(id)
@@ -222,7 +303,12 @@ export function renderBrandBrief(profile: BrandProfile): string {
     profile.voice && `Voice:\n${profile.voice}`,
     profile.examples && `Examples:\n${profile.examples}`,
     profile.visual && `Visual:\n${profile.visual}`,
+    profile.visual_identity &&
+      `Visual identity (structured):\n${profile.visual_identity}`,
+    profile.format_mix && `Format mix quotas: ${profile.format_mix}`,
     profile.default_format && `Default format: ${profile.default_format}`,
+    profile.default_max_slides != null &&
+      `Default max carousel slides: ${profile.default_max_slides}`,
     profile.default_background_style &&
       `Default background style: ${profile.default_background_style}`,
     profile.guide_md && `Guide:\n${profile.guide_md}`,
@@ -240,8 +326,10 @@ export function resolveBrandContext(post: Post): BrandContext {
     overrides.audience && `Audience focus: ${overrides.audience}`,
     overrides.hashtag_extra && `Hashtag extras: ${overrides.hashtag_extra}`,
   ].filter(Boolean)
+  const identity = parseVisualIdentity(profile?.visual_identity)
   const visualParts = [
     profile?.visual,
+    profile?.visual_identity && `Structured identity JSON:\n${profile.visual_identity}`,
     overrides.visual_extra,
     overrides.image_prompt_extra && `Image direction: ${overrides.image_prompt_extra}`,
   ].filter(Boolean)
@@ -251,6 +339,7 @@ export function resolveBrandContext(post: Post): BrandContext {
       ? `## Post overrides\n${JSON.stringify(overrides, null, 2)}`
       : '',
     post.pillar ? `Content pillar for this post: ${post.pillar}` : '',
+    post.angle ? `Angle: ${post.angle}` : '',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -261,12 +350,17 @@ export function resolveBrandContext(post: Post): BrandContext {
     briefMd: briefMd || 'No brand profile set.',
     voiceBrief: voiceParts.join('\n') || '',
     visualBrief: visualParts.join('\n') || '',
+    visualIdentity: identity,
     backgroundStyle:
       overrides.background_style ||
       post.background_style ||
       profile?.default_background_style ||
       null,
     format: post.format || profile?.default_format || 'feed',
+    maxSlides: clampMaxSlides(
+      overrides.max_slides ?? profile?.default_max_slides ?? 5,
+      5
+    ),
   }
 }
 
@@ -338,8 +432,8 @@ export function createDraftFromProposal(opts: {
     .prepare(
       `INSERT INTO posts (
         account_id, topic, background_style, format, status,
-        brand_profile_id, scheduled_at, pillar, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+        brand_profile_id, scheduled_at, pillar, angle, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
     )
     .run(
       opts.account_id || null,
@@ -348,14 +442,16 @@ export function createDraftFromProposal(opts: {
       format,
       opts.brand_profile_id,
       scheduled,
-      opts.proposal.pillar || null
+      opts.proposal.pillar || null,
+      opts.proposal.angle || null
     )
   const post = db
     .prepare('SELECT * FROM posts WHERE id = ?')
     .get(Number(info.lastInsertRowid)) as Post
   const fmt: PostFormat =
     format === 'reel' || format === 'carousel' || format === 'feed' ? format : 'feed'
-  ensureSlidesForFormat(post.id, fmt, opts.proposal.topic)
+  // Short Cover/Point placeholders — agent fills real slide copy later.
+  ensureSlidesForFormat(post.id, fmt)
   return post
 }
 

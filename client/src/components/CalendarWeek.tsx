@@ -42,6 +42,21 @@ const STATUS_MARK: Record<string, { label: string; className: string }> = {
   failed: { label: 'Failed', className: 'text-destructive' },
 }
 
+const FORMAT_TAG: Record<string, { label: string; className: string }> = {
+  feed: {
+    label: 'Feed',
+    className: 'border-border bg-muted text-muted-foreground',
+  },
+  reel: {
+    label: 'Reel',
+    className: 'border-rule/40 bg-rule/10 text-rule',
+  },
+  carousel: {
+    label: 'Carousel',
+    className: 'border-pending/40 bg-pending/10 text-pending',
+  },
+}
+
 function ChromeLabel({ children }: { children: React.ReactNode }) {
   return (
     <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -338,11 +353,56 @@ export function CalendarWeekPanel({ onOpenPost, onError }: Props) {
                       )
                     }
                   />
-                  {(p.pillar || p.format) && (
-                    <p className="truncate text-[10px] text-muted-foreground">
-                      {[p.pillar, p.format].filter(Boolean).join(' · ')}
-                    </p>
-                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    <select
+                      className="h-7 rounded-sm border border-input bg-card px-1.5 text-[10px] font-semibold uppercase"
+                      value={(p.format || 'feed') as string}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setProposals((prev) =>
+                          prev
+                            ? prev.map((x, j) =>
+                                j === i ? { ...x, format: e.target.value } : x
+                              )
+                            : prev
+                        )
+                      }
+                    >
+                      <option value="feed">feed</option>
+                      <option value="reel">reel</option>
+                      <option value="carousel">carousel</option>
+                    </select>
+                    <Input
+                      className="h-7 flex-1 text-[11px]"
+                      value={p.pillar || ''}
+                      disabled={busy}
+                      placeholder="Pillar"
+                      onChange={(e) =>
+                        setProposals((prev) =>
+                          prev
+                            ? prev.map((x, j) =>
+                                j === i ? { ...x, pillar: e.target.value || null } : x
+                              )
+                            : prev
+                        )
+                      }
+                    />
+                  </div>
+                  <Input
+                    className="h-7 text-[11px]"
+                    value={p.angle || ''}
+                    disabled={busy}
+                    placeholder="Angle / POV"
+                    onChange={(e) =>
+                      setProposals((prev) =>
+                        prev
+                          ? prev.map((x, j) =>
+                              j === i ? { ...x, angle: e.target.value || null } : x
+                            )
+                          : prev
+                      )
+                    }
+                  />
                 </div>
                 <Button
                   size="sm"
@@ -423,6 +483,8 @@ export function CalendarWeekPanel({ onOpenPost, onError }: Props) {
                   )}
                   {items.map((p) => {
                     const mark = STATUS_MARK[p.status] || STATUS_MARK.draft
+                    const formatKey = (p.format || 'feed').toLowerCase()
+                    const formatTag = FORMAT_TAG[formatKey] || FORMAT_TAG.feed
                     return (
                       <li key={p.id}>
                         <button
@@ -430,6 +492,19 @@ export function CalendarWeekPanel({ onOpenPost, onError }: Props) {
                           onClick={() => onOpenPost(p)}
                           className="group w-full border border-border bg-background px-2 py-1.5 text-left transition-colors hover:border-rule/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rule"
                         >
+                          <div className="mb-1 flex items-start justify-between gap-1">
+                            <span
+                              className={cn(
+                                'inline-flex shrink-0 border px-1 py-px text-[8px] font-semibold uppercase tracking-[0.06em]',
+                                formatTag.className
+                              )}
+                            >
+                              {formatTag.label}
+                            </span>
+                            <span className="font-mono text-[9px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                              #{p.id}
+                            </span>
+                          </div>
                           <p className="line-clamp-2 text-[12px] font-medium leading-snug text-foreground">
                             {p.topic || `Post ${p.id}`}
                           </p>
@@ -447,9 +522,6 @@ export function CalendarWeekPanel({ onOpenPost, onError }: Props) {
                                 {p.pillar}
                               </span>
                             )}
-                            <span className="ml-auto font-mono text-[9px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                              #{p.id}
-                            </span>
                           </div>
                         </button>
                       </li>

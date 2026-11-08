@@ -12,7 +12,9 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { BACKGROUND_STYLES } from '@instagram-agent/shared'
+import { localApiBase } from './r2'
 import { assetsRoot } from './stock'
+import { coverCropToInstagramSize, exportSizeForFormat } from './instagram-size'
 
 export type GeneratedImageAsset = {
   provider: 'openai'
@@ -22,13 +24,6 @@ export type GeneratedImageAsset = {
   publicUrl: string
   mime: string
   prompt: string
-}
-
-function publicBase(): string {
-  const base =
-    process.env.PUBLIC_API_BASE ||
-    `http://127.0.0.1:${process.env.PORT || 3001}`
-  return base.replace(/\/$/, '')
 }
 
 export function openaiImageConfigured(): boolean {
@@ -48,12 +43,15 @@ export function openaiImageConfig() {
   }
 }
 
-/** Map post format → Images API size (GPT image portrait / square). */
+/**
+ * Map post format → OpenAI Images API size (API-limited).
+ * We always cover-crop afterward to FORMAT_EXPORT (1080×1350 / 1080×1920).
+ * Portrait 1024×1536 is the closest tall size the API offers.
+ */
 export function sizeForFormat(format: string | null | undefined): string {
   if (process.env.IMAGE_OPENAI_SIZE?.trim()) return process.env.IMAGE_OPENAI_SIZE.trim()
   const f = (format || 'feed').toLowerCase()
-  if (f === 'reel') return '1024x1536'
-  if (f === 'feed' || f === 'carousel') return '1024x1536'
+  if (f === 'reel' || f === 'feed' || f === 'carousel') return '1024x1536'
   return '1024x1024'
 }
 
@@ -90,10 +88,11 @@ export function imagePromptFromPost(post: {
 
   const format = (post.format || 'feed').toLowerCase()
   if (format === 'reel') {
-    prompt = `${prompt}. Vertical 9:16 composition suitable for Instagram Reels cover.`
+    prompt = `${prompt}. Vertical 9:16 composition suitable for Instagram Reels.`
   } else {
-    prompt = `${prompt}. Vertical 4:5 Instagram feed composition, leave space for overlay text.`
+    prompt = `${prompt}. Vertical 4:5 Instagram feed composition.`
   }
+  // On-image typography is instructed in the generation prompt when needed.
 
   return prompt.slice(0, 30000)
 }
@@ -145,28 +144,29 @@ export async function generateOpenAiImageForPost(
 
   const item = json.data?.[0]
   let bytes: Buffer
-  let mime = 'image/png'
   if (item?.b64_json) {
     bytes = Buffer.from(item.b64_json, 'base64')
   } else if (item?.url) {
     const imgRes = await fetch(item.url)
     if (!imgRes.ok) throw new Error(`Failed to download generated image HTTP ${imgRes.status}`)
     bytes = Buffer.from(await imgRes.arrayBuffer())
-    const ct = imgRes.headers.get('content-type') || ''
-    if (ct.includes('jpeg') || ct.includes('jpg')) mime = 'image/jpeg'
-    else if (ct.includes('webp')) mime = 'image/webp'
   } else {
     throw new Error('OpenAI Images response had no b64_json or url')
   }
 
-  const ext = mime.includes('jpeg') ? 'jpg' : mime.includes('webp') ? 'webp' : 'png'
+  // Cover-crop to Instagram export pixels (feed/carousel 1080×1350, reel 1080×1920)
+  const format = opts?.format || 'feed'
+  bytes = await coverCropToInstagramSize(bytes, format)
+  const target = exportSizeForFormat(format)
+  const mime = 'image/png'
+
   const dir = path.join(assetsRoot(), 'posts', String(postId))
   fs.mkdirSync(dir, { recursive: true })
-  const filename = `openai-${crypto.randomBytes(4).toString('hex')}.${ext}`
+  const filename = `openai-${target.width}x${target.height}-${crypto.randomBytes(4).toString('hex')}.png`
   const absolutePath = path.join(dir, filename)
   fs.writeFileSync(absolutePath, bytes)
   const relativePath = path.join('posts', String(postId), filename)
-  const publicUrl = `${publicBase()}/assets/${relativePath.split(path.sep).join('/')}`
+  const publicUrl = `${localApiBase()}/assets/${relativePath.split(path.sep).join('/')}`
 
   return {
     provider: 'openai',

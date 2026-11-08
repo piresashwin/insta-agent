@@ -1,0 +1,37 @@
+# Never bake secrets, local state, or dev tooling into the image.
+.env
+.env.local
+.env.*.local
+
+# SQLite database (mount as a volume at runtime).
+server/*.db
+server/*.db-shm
+server/*.db-wal
+server/content-agent.db
+
+# Downloaded stock media — large and ephemeral.
+server/assets/
+
+# Node modules — reinstalled in the Docker build.
+node_modules/
+client/node_modules/
+server/node_modules/
+shared/node_modules/
+
+# TypeScript source output (we copy from builder stage).
+client/dist/
+server/dist/
+shared/dist/
+*.tsbuildinfo
+
+# Git history, editor configs, docs.
+.git/
+.cursor/
+docs/
+*.md
+!README.md
+
+# OS and editor noise.
+.DS_Store
+*.log
+.vscode/

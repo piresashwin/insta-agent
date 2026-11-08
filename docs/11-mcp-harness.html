@@ -28,15 +28,16 @@
         <div class="callout build">
           <strong class="label">Build</strong>
           <ol style="margin:0">
-            <li>Expand <code>server/src/mcp-server.js</code> beyond skills</li>
-            <li>Add <code>list_posts</code>, <code>get_run</code>, <code>start_run_on_post</code>, <code>get_brand_context</code></li>
-            <li>Start a draft from the IDE; confirm it appears in React</li>
+            <li>Expand <code>server/src/mcp-server.ts</code> beyond skills (orchestrator + operator tools)</li>
+            <li>Core: <code>list_posts</code>, <code>get_run</code>, <code>start_run_on_post</code>, <code>get_brand_context</code></li>
+            <li>Operator loop: <code>generate_brand_draft</code> → <code>save_brand_profile</code> → <code>generate_visual_identity</code> → <code>fill_week</code> (dry_run default) → commit → optional <code>start_run_on_post</code></li>
+            <li>HITL stop: approve / media / publish stay in React — never on MCP</li>
           </ol>
         </div>
 
         <div class="callout check">
           <strong class="label">Checkpoint</strong>
-          <p style="margin:0">A run started from MCP shows up in the React monitor with the same <code>run_id</code>.</p>
+          <p style="margin:0">A run started from MCP shows up in the React monitor with the same <code>run_id</code>. Brand save + dry-run fill_week share SQLite with the dashboard; commit creates <code>draft</code> posts only.</p>
         </div>
 
         <div class="callout notes">

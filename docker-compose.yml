@@ -5,8 +5,13 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./src:/app/src
-      - ./content-agent.db:/app/content-agent.db
+      # Persist the SQLite database outside the container.
+      # The server writes to /app/server/content-agent.db inside the container.
+      - ./server/data:/app/server/data
     environment:
       - PORT=3001
+      - BIND_HOST=0.0.0.0
+      # Set OPERATOR_TOKEN for production. Without it, all API routes are open.
+      # - OPERATOR_TOKEN=change-me
+      # Extend with other env vars from .env.local or Docker secrets in prod.
     restart: unless-stopped

@@ -7,6 +7,9 @@ type CreateRunOpts = {
   postId?: number | null
   model?: string | null
   kind?: string
+  actor_kind?: string | null
+  actor_name?: string | null
+  actor_client?: string | null
 }
 
 type ListRunsOpts = {
@@ -16,16 +19,24 @@ type ListRunsOpts = {
 
 type RunEventRow = Omit<RunEvent, 'payload'> & { payload: string }
 
-function createRun({ goal, postId = null, model = null, kind = 'agent' }: CreateRunOpts): Run {
+function createRun({
+  goal,
+  postId = null,
+  model = null,
+  kind = 'agent',
+  actor_kind = null,
+  actor_name = null,
+  actor_client = null,
+}: CreateRunOpts): Run {
   if (!goal || typeof goal !== 'string') {
     throw new Error('createRun requires a string goal')
   }
   const info = db
     .prepare(
-      `INSERT INTO runs (post_id, goal, kind, status, model, started_at)
-       VALUES (?, ?, ?, 'running', ?, CURRENT_TIMESTAMP)`
+      `INSERT INTO runs (post_id, goal, kind, status, model, actor_kind, actor_name, actor_client, started_at)
+       VALUES (?, ?, ?, 'running', ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     )
-    .run(postId, goal, kind, model)
+    .run(postId, goal, kind, model, actor_kind, actor_name, actor_client)
   const run = getRun(Number(info.lastInsertRowid))
   if (!run) throw new Error('failed to create run')
   return run
@@ -104,6 +115,41 @@ function listRuns({ limit = 20, postId }: ListRunsOpts = {}): Run[] {
   return db.prepare('SELECT * FROM runs ORDER BY id DESC LIMIT ?').all(lim) as Run[]
 }
 
+/**
+ * Mark orphaned in-flight runs as failed (server restart / hung LLM).
+ * maxAgeMs=0 → fail every status=running (boot-time orphan sweep).
+ */
+function failStaleRuns(maxAgeMs = Number(process.env.AGENT_STALE_RUN_MS || 10 * 60_000)): number {
+  let stale: Array<{ id: number }>
+  const liveJobGuard = `AND NOT EXISTS (
+    SELECT 1 FROM jobs j WHERE j.run_id = runs.id AND j.status IN ('pending','running')
+  )`
+  if (maxAgeMs <= 0) {
+    stale = db
+      .prepare(`SELECT id FROM runs WHERE status = 'running' ${liveJobGuard}`)
+      .all() as Array<{ id: number }>
+  } else {
+    // SQLite CURRENT_TIMESTAMP is UTC "YYYY-MM-DD HH:MM:SS"
+    const ageSec = Math.max(30, Math.round(maxAgeMs / 1000))
+    stale = db
+      .prepare(
+        `SELECT id FROM runs
+         WHERE status = 'running'
+           AND (julianday('now') - julianday(started_at)) * 86400.0 >= ?
+           ${liveJobGuard}`,
+      )
+      .all(ageSec) as Array<{ id: number }>
+  }
+  const reason =
+    maxAgeMs <= 0
+      ? 'Aborted: orphaned running run (server restart)'
+      : `Aborted: run still marked running after ${Math.round(maxAgeMs / 1000)}s (hung model or crash)`
+  for (const row of stale) {
+    completeRun(row.id, 'failed', reason)
+  }
+  return stale.length
+}
+
 function safeParse(text: string): unknown {
   try {
     return JSON.parse(text)
@@ -146,5 +192,6 @@ export {
   getRunWithEvents,
   listEventsAfter,
   listRuns,
+  failStaleRuns,
   compactPayload,
 }

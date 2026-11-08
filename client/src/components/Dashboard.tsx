@@ -19,89 +19,44 @@ import {
 } from './ui/dialog'
 import { Separator } from './ui/separator'
 import { FormField, NavTab, PageShell, Section } from './layout'
-import type { BackgroundStyle, BrandOverrides, BrandProfile, PostSlide } from '@instagram-agent/shared'
+import type { BackgroundStyle, BrandProfile } from '@instagram-agent/shared'
 import { BACKGROUND_STYLES } from '../lib/background-styles'
 import { BrandProfilesPanel } from './BrandProfiles'
 import { CalendarWeekPanel } from './CalendarWeek'
 import {
   type ApiPost,
   type InstagramConn,
-  type Iteration,
   type PostStatus,
   type RunEvent,
   type RunRow,
-  addPostSlide,
   agentRun,
-  approveMedia,
-  approvePost,
   connectInstagramWithToken,
   createInstagramConnection,
   createPost,
   deleteInstagramConnection,
   disconnectInstagramOAuth,
-  fetchPostMedia,
   getInstagramAuthConfig,
-  getPost,
-  publishPostToInstagram,
+  getPublishTunnel,
   getRun,
   instagramOAuthStartUrl,
   listBrandProfiles,
   listInstagramConnections,
-  listIterations,
   listPosts,
-  listPostSlides,
   listRuns,
   mockConnectInstagram,
-  patchPost,
-  patchPostSlide,
   redactPayload,
-  removePostSlide,
+  setPublishTunnelUrl,
+  startPublishTunnel,
+  stopPublishTunnel,
   updateInstagramConnection,
-  requestChanges,
-  restartPost,
   runEventsStreamUrl,
+  type PublishTunnelStatus,
 } from '../api'
-import { PostCanvasEditor } from './PostCanvasEditor'
+import { STATUS_TONE } from './PostDialog'
+import { PostStudio } from './PostStudio'
 import { cn } from '../lib/utils'
 
-const statusTone: Record<
-  PostStatus,
-  { label: string; className: string }
-> = {
-  draft: { label: 'Draft', className: 'bg-muted text-muted-foreground' },
-  pending_approval: {
-    label: 'Needs OK',
-    className: 'bg-pending-soft text-pending border border-pending/20',
-  },
-  changes_requested: {
-    label: 'Revise',
-    className: 'bg-warn-soft text-warn border border-warn/20',
-  },
-  needs_revision: {
-    label: 'Cap hit',
-    className: 'bg-warn-soft text-warn border border-warn/30',
-  },
-  approved: {
-    label: 'Passed',
-    className: 'bg-ok-soft text-ok border border-ok/20',
-  },
-  media_generating: { label: 'Media…', className: 'bg-muted text-muted-foreground' },
-  media_ready: { label: 'Compose', className: 'bg-muted text-muted-foreground' },
-  staged: {
-    label: 'Staged',
-    className: 'bg-ok-soft text-ok border border-ok/20',
-  },
-  pending_upload: { label: 'Upload', className: 'bg-muted text-muted-foreground' },
-  publishing: { label: 'Publishing', className: 'bg-muted text-muted-foreground' },
-  published: {
-    label: 'Published',
-    className: 'bg-ok-soft text-ok border border-ok/20',
-  },
-  failed: {
-    label: 'Failed',
-    className: 'bg-red-50 text-destructive border border-destructive/20',
-  },
-}
+const statusTone = STATUS_TONE
 
 function text(value: string | null | undefined, fallback = '—') {
   const t = (value || '').trim()
@@ -124,11 +79,12 @@ export default function Dashboard() {
   const [posts, setPosts] = useState<ApiPost[]>([])
   const [runs, setRuns] = useState<RunRow[]>([])
   const [connections, setConnections] = useState<InstagramConn[]>([])
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<ApiPost | null>(null)
-  const [editingSlides, setEditingSlides] = useState<PostSlide[]>([])
+  const [tunnel, setTunnel] = useState<PublishTunnelStatus | null>(null)
+  const [tunnelBusy, setTunnelBusy] = useState(false)
+  const [tunnelManualUrl, setTunnelManualUrl] = useState('')
+  const [studioPostId, setStudioPostId] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'calendar' | 'queue' | 'brands' | 'runs' | 'connect'
+    'calendar' | 'queue' | 'brands' | 'runs' | 'connect' | 'studio'
   >('calendar')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -136,18 +92,10 @@ export default function Dashboard() {
   const [newTopic, setNewTopic] = useState('')
   const [newBgStyle, setNewBgStyle] = useState<BackgroundStyle | ''>('lifestyle')
   const [showNew, setShowNew] = useState(false)
-  const [stockQueryEdit, setStockQueryEdit] = useState('')
-  const [imagePromptEdit, setImagePromptEdit] = useState('')
   const [brands, setBrands] = useState<BrandProfile[]>([])
-  const [overrideOpen, setOverrideOpen] = useState(false)
-  const [overrideDraft, setOverrideDraft] = useState<BrandOverrides>({})
-  const [scheduleEdit, setScheduleEdit] = useState('')
-  const [pillarEdit, setPillarEdit] = useState('')
-  const [brandEditId, setBrandEditId] = useState<number | ''>('')
   const [scheduleFilter, setScheduleFilter] = useState<'all' | 'scheduled' | 'unscheduled'>(
     'all'
   )
-  const [changeComment, setChangeComment] = useState('')
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
   const [runEvents, setRunEvents] = useState<RunEvent[]>([])
   const [runDetailLoading, setRunDetailLoading] = useState(false)
@@ -156,8 +104,6 @@ export default function Dashboard() {
     model?: string | null
     live?: boolean
   }>({})
-  const [iterations, setIterations] = useState<Iteration[]>([])
-  const [maxRevisions, setMaxRevisions] = useState(3)
   const [statusFilter, setStatusFilter] = useState<PostStatus | ''>('')
   const [igForm, setIgForm] = useState({
     account_id: '',
@@ -171,17 +117,19 @@ export default function Dashboard() {
 
   const refresh = useCallback(async () => {
     setError(null)
-    const [{ posts: nextPosts }, { runs: nextRuns }, { connections: nextConns }, brandsRes] =
+    const [{ posts: nextPosts }, { runs: nextRuns }, { connections: nextConns }, brandsRes, tunnelRes] =
       await Promise.all([
         listPosts(statusFilter || undefined),
         listRuns(20),
         listInstagramConnections(),
         listBrandProfiles().catch(() => ({ brands: [] as BrandProfile[] })),
+        getPublishTunnel().catch(() => null),
       ])
     setPosts(nextPosts)
     setRuns(nextRuns)
     setConnections(nextConns)
     setBrands(brandsRes.brands)
+    if (tunnelRes) setTunnel(tunnelRes.tunnel)
   }, [statusFilter])
 
   useEffect(() => {
@@ -249,62 +197,9 @@ export default function Dashboard() {
     return true
   })
 
-  function syncPostMeta(post: ApiPost) {
-    setStockQueryEdit(post.stock_search_query || '')
-    setImagePromptEdit(post.image_prompt || '')
-    setBrandEditId(post.brand_profile_id ?? '')
-    setScheduleEdit(post.scheduled_at ? post.scheduled_at.slice(0, 16) : '')
-    setPillarEdit(post.pillar || '')
-    try {
-      setOverrideDraft(
-        post.brand_overrides ? (JSON.parse(post.brand_overrides) as BrandOverrides) : {}
-      )
-    } catch {
-      setOverrideDraft({})
-    }
-  }
-
   async function openPost(post: ApiPost) {
-    setEditing(post)
-    syncPostMeta(post)
-    setOverrideOpen(false)
-    setOpen(true)
-    try {
-      const detail = await getPost(post.id)
-      setEditing(detail.post)
-      syncPostMeta(detail.post)
-      setEditingSlides(detail.slides || [])
-    } catch {
-      try {
-        const { slides } = await listPostSlides(post.id)
-        setEditingSlides(slides)
-      } catch {
-        setEditingSlides([])
-      }
-    }
-  }
-
-  async function savePostBrandMeta() {
-    if (!editing) return
-    setBusy(true)
-    setError(null)
-    try {
-      const { post } = await patchPost(editing.id, {
-        brand_profile_id: brandEditId === '' ? null : brandEditId,
-        scheduled_at: scheduleEdit ? new Date(scheduleEdit).toISOString() : null,
-        pillar: pillarEdit.trim() || null,
-        brand_overrides: Object.keys(overrideDraft).length
-          ? JSON.stringify(overrideDraft)
-          : null,
-      })
-      setEditing(post)
-      syncPostMeta(post)
-      await refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
-    } finally {
-      setBusy(false)
-    }
+    setStudioPostId(post.id)
+    setActiveTab('studio')
   }
 
   async function handleCreatePost(runImmediately: boolean) {
@@ -321,162 +216,20 @@ export default function Dashboard() {
       if (runImmediately) {
         const { post: updated, run_id } = await agentRun(post.id)
         await refresh()
-        setEditing(updated)
-        setStockQueryEdit(updated.stock_search_query || '')
-        setOpen(true)
+        setStudioPostId(updated.id)
         if (run_id) {
           setActiveTab('runs')
           setSelectedRunId(run_id)
+        } else {
+          setActiveTab('studio')
         }
       } else {
         await refresh()
-        setEditing(post)
-        setStockQueryEdit('')
-        setOpen(true)
+        setStudioPostId(post.id)
+        setActiveTab('studio')
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Create failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleAgentRun(postId: number) {
-    setBusy(true)
-    setError(null)
-    try {
-      // 202 + run_id immediately — SSE tails pipeline steps live.
-      const { post, run_id } = await agentRun(postId)
-      await refresh()
-      setEditing(post)
-      if (run_id) {
-        setActiveTab('runs')
-        setSelectedRunId(run_id)
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Agent run failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleApprove(postId: number) {
-    setBusy(true)
-    setError(null)
-    try {
-      const { post } = await approvePost(postId)
-      await refresh()
-      setEditing(post)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Approve failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleRequestChanges(postId: number) {
-    setBusy(true)
-    setError(null)
-    try {
-      const { post } = await requestChanges(
-        postId,
-        changeComment.trim() || 'Please revise'
-      )
-      setChangeComment('')
-      await refresh()
-      setEditing(post)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Request changes failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleRestart(postId: number) {
-    setBusy(true)
-    setError(null)
-    try {
-      const { post } = await restartPost(postId)
-      await refresh()
-      setEditing(post)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Restart failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleFetchMedia(
-    postId: number,
-    provider: 'pexels' | 'openai',
-    slideId?: number
-  ) {
-    setBusy(true)
-    setError(null)
-    try {
-      if (provider === 'openai') {
-        const prompt = imagePromptEdit.trim() || undefined
-        if (prompt && prompt !== (editing?.image_prompt || '')) {
-          await patchPost(postId, { image_prompt: prompt })
-        }
-        const { post, media, slides } = await fetchPostMedia(postId, {
-          provider: 'openai',
-          slide_id: slideId,
-          prompt,
-        })
-        await refresh()
-        setEditing(post)
-        setImagePromptEdit(post.image_prompt || prompt || '')
-        if (slides) setEditingSlides(slides)
-        else {
-          const listed = await listPostSlides(postId)
-          setEditingSlides(listed.slides)
-        }
-        console.info('[media]', media?.provider, media?.model, media?.url)
-      } else {
-        const query = stockQueryEdit.trim() || undefined
-        if (query && query !== (editing?.stock_search_query || '')) {
-          await patchPost(postId, { stock_search_query: query })
-        }
-        const { post, media, slides } = await fetchPostMedia(postId, {
-          provider: 'pexels',
-          slide_id: slideId,
-          query,
-        })
-        await refresh()
-        setEditing(post)
-        setStockQueryEdit(post.stock_search_query || query || '')
-        if (slides) setEditingSlides(slides)
-        else {
-          const listed = await listPostSlides(postId)
-          setEditingSlides(listed.slides)
-        }
-        console.info('[media]', media?.provider, media?.query, media?.url)
-      }
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : provider === 'openai'
-            ? 'AI image generation failed'
-            : 'Pexels fetch failed'
-      )
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handlePublishInstagram(postId: number) {
-    setBusy(true)
-    setError(null)
-    try {
-      const { post, note } = await publishPostToInstagram(postId)
-      await refresh()
-      setEditing(post)
-      if (note) setOauthBanner(note)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Instagram publish failed')
-      await refresh()
     } finally {
       setBusy(false)
     }
@@ -547,6 +300,61 @@ export default function Dashboard() {
     }
   }
 
+  async function handleGenerateTunnel() {
+    setTunnelBusy(true)
+    setError(null)
+    try {
+      const { tunnel: next } = await startPublishTunnel()
+      setTunnel(next)
+      setOauthBanner(
+        next.base_url
+          ? `Publish tunnel ready: ${next.base_url} (saved in DB — publish uses it immediately)`
+          : 'Tunnel started'
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start publish tunnel')
+    } finally {
+      setTunnelBusy(false)
+    }
+  }
+
+  async function handleStopTunnel() {
+    setTunnelBusy(true)
+    setError(null)
+    try {
+      const { tunnel: next } = await stopPublishTunnel()
+      setTunnel(next)
+      setOauthBanner('Publish tunnel stopped and cleared from database')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to stop tunnel')
+    } finally {
+      setTunnelBusy(false)
+    }
+  }
+
+  async function handleSetTunnelUrl(e: FormEvent) {
+    e.preventDefault()
+    const url = tunnelManualUrl.trim()
+    if (!url) {
+      setError('Paste an https:// tunnel URL first')
+      return
+    }
+    setTunnelBusy(true)
+    setError(null)
+    try {
+      const { tunnel: next } = await setPublishTunnelUrl(url)
+      setTunnel(next)
+      setTunnelManualUrl('')
+      setOauthBanner(
+        next.base_url ? `Publish tunnel set: ${next.base_url}` : 'Tunnel URL saved'
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set tunnel URL')
+    } finally {
+      setTunnelBusy(false)
+    }
+  }
+
   async function handlePasteToken(id: number) {
     const access_token = (pasteTokenById[id] || '').trim()
     if (!access_token) {
@@ -569,24 +377,6 @@ export default function Dashboard() {
       setBusy(false)
     }
   }
-
-  async function loadIterations(postId: number) {
-    try {
-      const data = await listIterations(postId)
-      setIterations(data.iterations)
-      setMaxRevisions(data.max_revisions)
-    } catch {
-      setIterations([])
-    }
-  }
-
-  useEffect(() => {
-    if (!editing?.id || !open) {
-      setIterations([])
-      return
-    }
-    void loadIterations(editing.id)
-  }, [editing?.id, open, editing?.revisions])
 
   // Lesson 10 — live timeline via SSE (poll fallback).
   useEffect(() => {
@@ -782,6 +572,20 @@ export default function Dashboard() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : activeTab === 'studio' && studioPostId != null ? (
+        <PostStudio
+          postId={studioPostId}
+          connections={connections}
+          onError={setError}
+          onClose={() => {
+            setStudioPostId(null)
+            setActiveTab('queue')
+            void refresh()
+          }}
+          onPostUpdated={(p) => {
+            setPosts((list) => list.map((x) => (x.id === p.id ? p : x)))
+          }}
+        />
       ) : activeTab === 'calendar' ? (
         <CalendarWeekPanel
           onOpenPost={(p) => void openPost(p)}
@@ -1047,6 +851,68 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="dash-in grid max-w-3xl gap-6">
+          <Card>
+            <CardContent className="space-y-4 pt-4">
+              <div>
+                <h2 className="text-sm font-semibold">Publish tunnel</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Instagram must fetch media over HTTPS. Generate a cloudflared tunnel; the URL is
+                  stored in the database and used at publish immediately (no API restart). Media
+                  staging stays on localhost.
+                </p>
+              </div>
+              <Separator />
+              <div className="space-y-1 text-sm">
+                <p className="font-medium break-all">
+                  {tunnel?.base_url || 'No tunnel set'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  source: {tunnel?.source ?? 'none'}
+                  {tunnel?.reachable != null
+                    ? ` · reachable: ${tunnel.reachable ? 'yes' : 'no'}`
+                    : ''}
+                  {tunnel?.process_alive != null
+                    ? ` · process: ${tunnel.process_alive ? 'alive' : 'stopped'}`
+                    : ''}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={tunnelBusy || busy}
+                  onClick={() => void handleGenerateTunnel()}
+                >
+                  {tunnelBusy ? 'Working…' : 'Generate tunnel'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={tunnelBusy || busy || !tunnel?.base_url}
+                  onClick={() => void handleStopTunnel()}
+                >
+                  Stop & clear
+                </Button>
+              </div>
+              <form className="space-y-3" onSubmit={(e) => void handleSetTunnelUrl(e)}>
+                <FormField label="Or paste existing HTTPS URL">
+                  <Input
+                    value={tunnelManualUrl}
+                    onChange={(e) => setTunnelManualUrl(e.target.value)}
+                    placeholder="https://….trycloudflare.com"
+                    disabled={tunnelBusy || busy}
+                  />
+                </FormField>
+                <div className="flex justify-end">
+                  <Button type="submit" size="sm" variant="outline" disabled={tunnelBusy || busy}>
+                    Save URL
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="space-y-4 pt-4">
               <div>
@@ -1334,444 +1200,6 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Post {editing?.id}</DialogTitle>
-            {editing && (
-              <Badge className={statusTone[editing.status].className}>
-                {statusTone[editing.status].label}
-              </Badge>
-            )}
-          </DialogHeader>
-          {error && editing && (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/30 bg-red-50 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          )}
-          {editing && (
-            <div className="space-y-4">
-              <div className="border border-border bg-muted/20">
-                <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-rule">
-                    Plate meta
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => setOverrideOpen((o) => !o)}
-                    >
-                      {overrideOpen ? 'Hide overrides' : 'Overrides'}
-                    </Button>
-                    <Button size="sm" disabled={busy} onClick={() => void savePostBrandMeta()}>
-                      Save
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid gap-3 p-3 sm:grid-cols-3">
-                  <FormField label="Brand">
-                    <select
-                      className="h-9 w-full rounded-sm border border-border bg-card px-2 text-sm"
-                      value={brandEditId === '' ? '' : String(brandEditId)}
-                      disabled={busy}
-                      onChange={(e) =>
-                        setBrandEditId(e.target.value ? Number(e.target.value) : '')
-                      }
-                    >
-                      <option value="">None</option>
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                  <FormField label="Schedule">
-                    <Input
-                      type="datetime-local"
-                      value={scheduleEdit}
-                      disabled={busy}
-                      onChange={(e) => setScheduleEdit(e.target.value)}
-                    />
-                  </FormField>
-                  <FormField label="Pillar">
-                    <Input
-                      value={pillarEdit}
-                      disabled={busy}
-                      onChange={(e) => setPillarEdit(e.target.value)}
-                      placeholder="optional"
-                    />
-                  </FormField>
-                </div>
-                {overrideOpen && (
-                  <div className="space-y-2 border-t border-border px-3 py-3">
-                    <FormField label="Voice note">
-                      <Input
-                        value={overrideDraft.voice_note || ''}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setOverrideDraft((d) => ({ ...d, voice_note: e.target.value }))
-                        }
-                      />
-                    </FormField>
-                    <FormField label="Extra image direction">
-                      <Input
-                        value={overrideDraft.image_prompt_extra || ''}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setOverrideDraft((d) => ({
-                            ...d,
-                            image_prompt_extra: e.target.value,
-                          }))
-                        }
-                      />
-                    </FormField>
-                    <FormField label="Hashtag extras">
-                      <Input
-                        value={overrideDraft.hashtag_extra || ''}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setOverrideDraft((d) => ({ ...d, hashtag_extra: e.target.value }))
-                        }
-                      />
-                    </FormField>
-                    <FormField label="Background override">
-                      <select
-                        className="h-9 w-full rounded-sm border border-border bg-card px-2 text-sm"
-                        value={overrideDraft.background_style || ''}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setOverrideDraft((d) => ({
-                            ...d,
-                            background_style: e.target.value || undefined,
-                          }))
-                        }
-                      >
-                        <option value="">(use post / brand default)</option>
-                        {BACKGROUND_STYLES.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </FormField>
-                  </div>
-                )}
-              </div>
-              <FormField label="Topic">
-                <Input value={text(editing.topic, '')} readOnly />
-              </FormField>
-              <FormField label="Hook">
-                <p className="text-sm leading-relaxed">{text(editing.hook)}</p>
-              </FormField>
-              <FormField label="Caption">
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                  {text(editing.caption)}
-                </p>
-              </FormField>
-              <FormField label="Hashtags">
-                <div className="flex flex-wrap gap-1.5">
-                  {text(editing.hashtags, '')
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .map((tag) => (
-                      <Badge key={tag} className="bg-muted text-muted-foreground">
-                        {tag}
-                      </Badge>
-                    ))}
-                  {!editing.hashtags?.trim() && (
-                    <span className="text-sm text-muted-foreground">—</span>
-                  )}
-                </div>
-              </FormField>
-              <FormField label="Format">
-                <Badge className="bg-muted text-muted-foreground uppercase">
-                  {text(editing.format, 'feed')}
-                </Badge>
-              </FormField>
-              <FormField label="Background style">
-                {(editing.status === 'draft' ||
-                  editing.status === 'changes_requested' ||
-                  editing.status === 'pending_approval' ||
-                  editing.status === 'approved') && (
-                  <div className="mb-2 flex flex-wrap gap-1.5">
-                    {BACKGROUND_STYLES.map((s) => (
-                      <Button
-                        key={s.id}
-                        type="button"
-                        size="sm"
-                        variant={editing.background_style === s.id ? 'default' : 'outline'}
-                        disabled={busy}
-                        onClick={() => {
-                          void (async () => {
-                            setBusy(true)
-                            try {
-                              const { post } = await patchPost(editing.id, {
-                                background_style: s.id,
-                              })
-                              setEditing(post)
-                            } catch (e) {
-                              setError(e instanceof Error ? e.message : 'Update failed')
-                            } finally {
-                              setBusy(false)
-                            }
-                          })()
-                        }}
-                      >
-                        {s.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                {!(
-                  editing.status === 'draft' ||
-                  editing.status === 'changes_requested' ||
-                  editing.status === 'pending_approval' ||
-                  editing.status === 'approved'
-                ) && (
-                  <Badge className="bg-muted text-muted-foreground">
-                    {text(editing.background_style, '—')}
-                  </Badge>
-                )}
-              </FormField>
-              <FormField label="Stock search (Pexels)">
-                <Input
-                  className="font-mono text-sm"
-                  value={stockQueryEdit}
-                  disabled={busy}
-                  onChange={(e) => setStockQueryEdit(e.target.value)}
-                  placeholder="keywords for Pexels"
-                />
-              </FormField>
-              <FormField label="Image prompt (GPT Image)">
-                <textarea
-                  className="min-h-[72px] w-full rounded-sm border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-rule"
-                  value={imagePromptEdit}
-                  disabled={busy}
-                  onChange={(e) => setImagePromptEdit(e.target.value)}
-                  placeholder="Describe the image to generate…"
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Uses IMAGE_OPENAI_* — separate from LM Studio chat keys.
-                </p>
-              </FormField>
-              <FormField label="Reel prompt">
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                  {text(editing.reel_prompt)}
-                </p>
-              </FormField>
-
-              {(editing.status === 'pending_approval' ||
-                editing.status === 'changes_requested') && (
-                <FormField label="Change request">
-                  <Input
-                    value={changeComment}
-                    onChange={(e) => setChangeComment(e.target.value)}
-                    placeholder="What should the agent revise?"
-                    disabled={busy}
-                  />
-                </FormField>
-              )}
-
-              <FormField
-                label={`Revision history (${iterations.length}/${maxRevisions})`}
-              >
-                {iterations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No change requests yet.</p>
-                ) : (
-                  <ul className="max-h-40 space-y-2 overflow-y-auto border-t border-border pt-2">
-                    {iterations.map((it) => (
-                      <li key={it.id} className="text-sm">
-                        <p className="leading-snug">{it.comment || '(no comment)'}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {it.author} · {it.created_at}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </FormField>
-
-              <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-                {(editing.status === 'draft' ||
-                  editing.status === 'changes_requested') && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => handleAgentRun(editing.id)}
-                  >
-                    Run agent
-                  </Button>
-                )}
-                {editing.status === 'pending_approval' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => handleRequestChanges(editing.id)}
-                    >
-                      Request changes
-                    </Button>
-                    <Button
-                      variant="pending"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => handleApprove(editing.id)}
-                    >
-                      Approve
-                    </Button>
-                  </>
-                )}
-                {editing.status === 'needs_revision' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => handleRestart(editing.id)}
-                  >
-                    Restart to draft
-                  </Button>
-                )}
-                {(editing.status === 'approved' ||
-                  editing.status === 'media_generating' ||
-                  editing.status === 'media_ready' ||
-                  editing.status === 'staged') && (
-                  <>
-                    <Button
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => void handleFetchMedia(editing.id, 'openai')}
-                      title={
-                        editing.format === 'carousel'
-                          ? 'Fills every carousel slide (per-slide briefs when available)'
-                          : undefined
-                      }
-                    >
-                      {editing.format === 'carousel'
-                        ? editing.status === 'approved' || editing.status === 'media_generating'
-                          ? 'Generate all slides (AI)'
-                          : 'Regenerate all slides (AI)'
-                        : editing.status === 'approved' || editing.status === 'media_generating'
-                          ? 'Generate with AI'
-                          : 'Regenerate with AI'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => void handleFetchMedia(editing.id, 'pexels')}
-                      title={
-                        editing.format === 'carousel'
-                          ? 'Fills every carousel slide from Pexels'
-                          : undefined
-                      }
-                    >
-                      {editing.format === 'carousel'
-                        ? editing.status === 'approved' || editing.status === 'media_generating'
-                          ? 'Generate all slides (Pexels)'
-                          : 'Regenerate all slides (Pexels)'
-                        : editing.status === 'approved' || editing.status === 'media_generating'
-                          ? 'Generate with Pexels'
-                          : 'Regenerate with Pexels'}
-                    </Button>
-                  </>
-                )}
-                {editing.status === 'staged' && (
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void handlePublishInstagram(editing.id)}
-                  >
-                    Publish to Instagram
-                  </Button>
-                )}
-                {editing.status === 'published' && editing.instagram_media_id && (
-                  <p className="w-full text-xs text-ok">
-                    Published · media id {editing.instagram_media_id}
-                  </p>
-                )}
-                {editing.status === 'failed' && editing.error && (
-                  <div className="w-full space-y-2">
-                    <p className="text-xs text-destructive">{editing.error}</p>
-                    {editing.image_url && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void handlePublishInstagram(editing.id)}
-                        title="Retries from staged when R2 URL present"
-                      >
-                        Retry publish
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {(editing.status === 'media_ready' || editing.status === 'staged') && (
-                <PostCanvasEditor
-                  post={editing}
-                  slides={editingSlides}
-                  busy={busy}
-                  onSaveSlideCanvas={async (slideId, canvasJson) => {
-                    await patchPostSlide(editing.id, slideId, { canvas_json: canvasJson })
-                  }}
-                  onSavePostCanvas={async (canvasJson) => {
-                    await patchPost(editing.id, { canvas_json: canvasJson })
-                  }}
-                  onAddSlide={async () => {
-                    setBusy(true)
-                    try {
-                      const { slides } = await addPostSlide(editing.id)
-                      setEditingSlides(slides)
-                    } finally {
-                      setBusy(false)
-                    }
-                  }}
-                  onRemoveSlide={async (slideId) => {
-                    setBusy(true)
-                    try {
-                      const { slides } = await removePostSlide(editing.id, slideId)
-                      setEditingSlides(slides)
-                    } finally {
-                      setBusy(false)
-                    }
-                  }}
-                  onFetchPexelsForSlide={async (slideId) => {
-                    await handleFetchMedia(editing.id, 'pexels', slideId)
-                  }}
-                  onFetchAiForSlide={async (slideId) => {
-                    await handleFetchMedia(editing.id, 'openai', slideId)
-                  }}
-                  onApproveMedia={async (payload) => {
-                    setBusy(true)
-                    setError(null)
-                    try {
-                      const { post, slides, note } = await approveMedia(editing.id, payload)
-                      await refresh()
-                      setEditing(post)
-                      if (slides) setEditingSlides(slides)
-                      if (note) setOauthBanner(note)
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : 'Approve media failed')
-                      throw e
-                    } finally {
-                      setBusy(false)
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </PageShell>
   )
 }

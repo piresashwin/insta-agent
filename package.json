@@ -10,16 +10,18 @@
     "shared"
   ],
   "scripts": {
-    "dev": "pnpm --filter server dev & pnpm --filter client dev",
+    "dev": "pnpm --filter @instagram-agent/shared dev & pnpm --filter server dev & pnpm --filter client dev",
     "dev:server": "pnpm --filter server dev",
     "dev:client": "pnpm --filter client dev",
     "build": "pnpm --filter @instagram-agent/shared build && pnpm --filter server build && pnpm --filter client build",
     "build:shared": "pnpm --filter @instagram-agent/shared build",
     "build:server": "pnpm --filter server build",
     "build:client": "pnpm --filter client build",
+    "typecheck": "pnpm --filter @instagram-agent/shared typecheck && pnpm --filter server typecheck && pnpm --filter client typecheck",
     "prod": "pnpm --filter server start",
     "db:migrate": "pnpm --filter server db:migrate",
     "model:ping": "pnpm --filter server model:ping",
-    "agent:ping": "pnpm --filter server agent:ping"
+    "agent:ping": "pnpm --filter server agent:ping",
+    "mcp": "pnpm --filter server mcp"
   }
 }

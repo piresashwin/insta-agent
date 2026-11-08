@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "name": "Ironwell",
+    "niche": "Strength training and habit coaching for busy professionals",
+    "audience": "Men and women 28–45 who sit at a desk and want to get strong in 3 hours a week",
+    "goals": "Build trust as a no-nonsense coach and fill the online program waitlist",
+    "guide_md": "Blunt, encouraging, evidence-first. Debunks fitness myths. Short sentences. One emoji max.",
+    "pillars": [
+      { "name": "Minimalist strength", "notes": "Fewer lifts, done well, progressive overload" },
+      { "name": "Myth-busting", "notes": "Calls out fitness industry nonsense with evidence" },
+      { "name": "Habit systems", "notes": "Consistency beats intensity" }
+    ],
+    "voice": "Direct coach voice, second person. Tough but on your side. Backs claims with simple physiology.",
+    "voiceRules": {
+      "do": ["Debunk a myth with a fact", "Give one actionable cue", "Keep sentences short"],
+      "dont": ["Shame bodies", "Promise fast fixes", "Use detox or toxin language"],
+      "banned_words": ["detox", "toxins", "shred", "bikini body", "miracle"],
+      "emoji_policy": "sparing",
+      "person": "second",
+      "caption_length": "short",
+      "cta_styles": ["Join the waitlist", "Save this for leg day"]
+    },
+    "examples": [
+      {
+        "hook": "You don't need 6 days a week. You need 3 that you actually show up for.",
+        "caption": "Consistency is the variable that moves the needle. Three full-body sessions, progressive overload, protein with every meal. That's the whole game. Everything else is noise.",
+        "hashtags": "#strengthtraining #progressiveoverload #fitnessforbusypeople #habits #liftheavy",
+        "what_works": "Removes overwhelm, states the mechanism, no hype"
+      }
+    ],
+    "hashtagSets": [
+      { "name": "core", "tags": ["strengthtraining", "progressiveoverload", "fitnessforbusypeople", "habits", "liftheavy"], "use_always": true, "max_pick": 5 }
+    ],
+    "visualIdentity": {
+      "palette": { "primary": "#17171a", "secondary": "#e5533c", "accent": "#f4c430", "background": "#fafafa" },
+      "typography": { "heading_font": "Archivo", "body_font": "Inter" },
+      "shot_rules": { "must": ["real gym, real sweat", "compound lifts"], "avoid": ["posed glamour shots", "aesthetic-only abs"] },
+      "layout_defaults": { "scrim": "bottom", "text_align": "left", "safe_margin": 7 },
+      "render_style": "gritty high-contrast gym photography",
+      "brand_mark": null
+    },
+    "rubric": {
+      "version": 1,
+      "criteria": [
+        { "id": "brand_fit", "target": "caption", "weight": 0.35, "description": "Blunt, evidence-first coaching — no shame, no quick fixes" },
+        { "id": "hook_myth", "target": "hook", "weight": 0.25, "description": "Hook challenges a belief or removes overwhelm" },
+        { "id": "cta_action", "target": "cta", "weight": 0.15, "description": "CTA points to waitlist or a save-worthy action" },
+        { "id": "visual_real", "target": "visual", "weight": 0.15, "description": "Real gym energy, not glamour" },
+        { "id": "hashtags_niche", "target": "hashtags", "weight": 0.1, "description": "Strength/habit tags with real search value" }
+      ]
+    },
+    "recentHooks": [
+      "Soreness is not a scoreboard.",
+      "The best program is the one you'll still be doing in six months."
+    ],
+    "maxSlides": 5,
+    "timezone": "America/Los_Angeles",
+    "backgroundStyle": "photo"
+  },
+  "topics": [
+    "Why 3 days a week beats 6",
+    "Progressive overload explained simply",
+    "The myth of spot reduction",
+    "How much protein you actually need",
+    "Why soreness isn't a measure of progress",
+    "Building a workout habit that survives a busy week"
+  ],
+  "gold_posts": [
+    {
+      "topic": "The myth of spot reduction",
+      "hook": "You cannot burn fat off one spot. Full stop.",
+      "caption": "A thousand crunches won't melt belly fat — fat loss is systemic. Build muscle, eat at a modest deficit, be patient. The abs show up when the whole system does.",
+      "format": "feed"
+    }
+  ],
+  "forbidden_terms": []
+}

@@ -7,6 +7,10 @@ import path from 'path'
 import crypto from 'crypto'
 import { BACKGROUND_STYLES } from '@instagram-agent/shared'
 
+function localApiBase(): string {
+  return `http://127.0.0.1:${process.env.PORT || 3001}`.replace(/\/$/, '')
+}
+
 export type StockHit = {
   provider: 'pexels' | 'unsplash' | 'pixabay'
   id: string
@@ -31,28 +35,29 @@ export function assetsRoot() {
   return ASSETS_ROOT
 }
 
-function publicBase(): string {
-  const base =
-    process.env.PUBLIC_API_BASE ||
-    `http://127.0.0.1:${process.env.PORT || 3001}`
-  return base.replace(/\/$/, '')
-}
 
 function ensureDir(dir: string) {
   fs.mkdirSync(dir, { recursive: true })
 }
 
-function pickRandom<T>(items: T[], excludeId?: string | null, idOf?: (item: T) => string): T | null {
+function pickRandom<T>(
+  items: T[],
+  excludeIds?: string | string[] | null,
+  idOf?: (item: T) => string
+): T | null {
   if (!items.length) return null
+  const excluded = new Set(
+    (Array.isArray(excludeIds) ? excludeIds : excludeIds ? [excludeIds] : []).map(String)
+  )
   const filtered =
-    excludeId && idOf ? items.filter((item) => idOf(item) !== excludeId) : items
+    excluded.size && idOf ? items.filter((item) => !excluded.has(idOf(item))) : items
   const pool = filtered.length ? filtered : items
   return pool[Math.floor(Math.random() * pool.length)] ?? null
 }
 
 async function searchPexels(
   query: string,
-  opts?: { excludeId?: string | null }
+  opts?: { excludeId?: string | string[] | null }
 ): Promise<StockHit | null> {
   const key = process.env.PEXELS_API_KEY
   if (!key) return null
@@ -162,7 +167,7 @@ async function searchPixabay(query: string): Promise<StockHit | null> {
 /** Pexels-first; Unsplash/Pixabay only if Pexels key missing or returns nothing. */
 export async function searchStock(
   query: string,
-  opts?: { excludeId?: string | null }
+  opts?: { excludeId?: string | string[] | null }
 ): Promise<StockHit> {
   const q = query.trim() || 'instagram lifestyle'
   const errors: string[] = []
@@ -202,7 +207,7 @@ export async function searchStock(
 export async function downloadStockForPost(
   postId: number | string,
   query: string,
-  opts?: { excludeId?: string | null }
+  opts?: { excludeId?: string | string[] | null }
 ): Promise<SavedAsset & { hit: StockHit }> {
   const hit = await searchStock(query, opts)
   const res = await fetch(hit.downloadUrl)
@@ -217,7 +222,7 @@ export async function downloadStockForPost(
   const absolutePath = path.join(dir, filename)
   fs.writeFileSync(absolutePath, buf)
   const relativePath = path.join('posts', String(postId), filename)
-  const publicUrl = `${publicBase()}/assets/${relativePath.split(path.sep).join('/')}`
+  const publicUrl = `${localApiBase()}/assets/${relativePath.split(path.sep).join('/')}`
   return {
     hit,
     provider: hit.provider,

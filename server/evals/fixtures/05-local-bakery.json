@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "name": "Flour & Field",
+    "niche": "Neighborhood sourdough bakery and small-batch pastry",
+    "audience": "Local foodies 25–55 within a few miles who love craft baking and weekend treats",
+    "goals": "Fill the Saturday pre-order list and build a warm neighborhood following",
+    "guide_md": "Warm, playful, hand-made feeling. Talks about the process and the smell. First-person bakery voice. Emoji welcome but not spammy.",
+    "pillars": [
+      { "name": "Behind the bake", "notes": "The overnight levain, the crumb, the crust" },
+      { "name": "This weekend's menu", "notes": "What's coming out of the oven" },
+      { "name": "Neighborhood love", "notes": "Regulars, the market, the street" }
+    ],
+    "voice": "Friendly first-person baker. Sensory, unpretentious, a little playful.",
+    "voiceRules": {
+      "do": ["Describe smell and texture", "Name the weekend items", "Sound hand-made"],
+      "dont": ["Sound corporate", "Overclaim health benefits", "Use industrial language"],
+      "banned_words": ["artisanal-inspired", "factory", "mass-produced", "additive"],
+      "emoji_policy": "moderate",
+      "person": "first_singular",
+      "caption_length": "short",
+      "cta_styles": ["Pre-order for Saturday", "Come say hi at the market"]
+    },
+    "examples": [
+      {
+        "hook": "The levain was bubbling at 6am and the whole shop smells like toasted wheat.",
+        "caption": "Today's bake: country sourdough with a blistered crust, plus brown-butter chocolate chip cookies. Pre-orders close Friday at 8pm. Come hungry. 🥖",
+        "hashtags": "#sourdough #localbakery #freshbread #smallbatch #weekendbaking",
+        "what_works": "Sensory, specific menu, clear deadline, warm"
+      }
+    ],
+    "hashtagSets": [
+      { "name": "core", "tags": ["sourdough", "localbakery", "freshbread", "smallbatch", "weekendbaking"], "use_always": true, "max_pick": 5 }
+    ],
+    "visualIdentity": {
+      "palette": { "primary": "#5a3b25", "secondary": "#e9d9bf", "accent": "#c25b2d", "background": "#fbf6ec" },
+      "typography": { "heading_font": "Fraunces", "body_font": "Work Sans" },
+      "shot_rules": { "must": ["warm kitchen light", "real crumb and crust", "hands in frame"], "avoid": ["sterile studio", "cold tones"] },
+      "layout_defaults": { "scrim": "bottom", "text_align": "left", "safe_margin": 7 },
+      "render_style": "warm, cozy food photography with natural light",
+      "brand_mark": null
+    },
+    "rubric": {
+      "version": 1,
+      "criteria": [
+        { "id": "brand_fit", "target": "caption", "weight": 0.35, "description": "Warm hand-made baker voice, sensory and specific" },
+        { "id": "hook_sensory", "target": "hook", "weight": 0.25, "description": "Hook evokes smell/texture or names the bake" },
+        { "id": "cta_local", "target": "cta", "weight": 0.15, "description": "CTA drives pre-order or a visit" },
+        { "id": "visual_warm", "target": "visual", "weight": 0.15, "description": "Warm kitchen light, real crumb" },
+        { "id": "hashtags_niche", "target": "hashtags", "weight": 0.1, "description": "Bakery/local tags with real search value" }
+      ]
+    },
+    "recentHooks": [
+      "Pulled the first loaves at dawn and the crust is singing.",
+      "Cinnamon morning buns are back this Saturday only."
+    ],
+    "maxSlides": 5,
+    "timezone": "America/Denver",
+    "backgroundStyle": "photo"
+  },
+  "topics": [
+    "This weekend's sourdough and pastry menu",
+    "The overnight levain process",
+    "What gives sourdough its open crumb",
+    "A new seasonal pastry launch",
+    "Meet us at the Saturday farmers market",
+    "How to store and refresh your loaf at home"
+  ],
+  "gold_posts": [
+    {
+      "topic": "The overnight levain process",
+      "hook": "My starter wakes up before I do.",
+      "caption": "I feed the levain at 10pm, and by morning it's doubled and ready. That slow overnight rise is what gives the loaf its tang and that open, custardy crumb. No shortcuts, just time. 🌙",
+      "format": "feed"
+    }
+  ],
+  "forbidden_terms": []
+}

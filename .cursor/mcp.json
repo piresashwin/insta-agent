@@ -1,8 +1,9 @@
 {
   "mcpServers": {
-    "instagram-content-skills": {
-      "command": "node",
-      "args": ["server/src/mcp-server.js"]
+    "instagram-agent": {
+      "command": "pnpm",
+      "args": ["--filter", "server", "exec", "tsx", "src/mcp-server.ts"],
+      "cwd": "${workspaceFolder}"
     }
   }
 }

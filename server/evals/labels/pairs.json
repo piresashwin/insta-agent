@@ -1,0 +1,35 @@
+{
+  "description": "Human-labeled good/bad post pairs for judge calibration. The eval judge should agree with the labeled winner ≥80% of the time; if agreement drops below that, do not change the judge.",
+  "pairs": [
+    {
+      "fixture": "01-faith",
+      "topic": "A prayer for anxious mornings",
+      "better": { "hook": "If you woke up already behind, start here.", "why": "Gentle, names the feeling, invites" },
+      "worse": { "hook": "5 PRAYERS THAT WILL CHANGE YOUR LIFE INSTANTLY!!!", "why": "Clickbait, hype, off-brand capitals" }
+    },
+    {
+      "fixture": "02-b2b-saas",
+      "topic": "The vanity metric killing your board deck",
+      "better": { "hook": "Total pipeline value is the metric that gets CROs fired.", "why": "Sharp, specific, contrarian" },
+      "worse": { "hook": "Revolutionize your synergy with game-changing pipeline insights!", "why": "Buzzword soup, banned words, no specifics" }
+    },
+    {
+      "fixture": "03-fitness-coach",
+      "topic": "The myth of spot reduction",
+      "better": { "hook": "You cannot burn fat off one spot. Full stop.", "why": "Blunt, debunks a myth, evidence-first" },
+      "worse": { "hook": "This miracle move will shred your belly fat fast!", "why": "Quick-fix hype, banned words" }
+    },
+    {
+      "fixture": "04-luxury-skincare",
+      "topic": "How to layer vitamin C and retinol",
+      "better": { "hook": "Vitamin C in the morning. Retinol at night. Never the two at once.", "why": "Understated, specific, confident" },
+      "worse": { "hook": "Get flawless skin INSTANTLY with this miracle combo!", "why": "Hype, urgency, banned words" }
+    },
+    {
+      "fixture": "05-local-bakery",
+      "topic": "The overnight levain process",
+      "better": { "hook": "My starter wakes up before I do.", "why": "Warm, sensory, hand-made voice" },
+      "worse": { "hook": "Our factory-fresh bread is made with no additives!", "why": "Industrial language, off-brand, banned words" }
+    }
+  ]
+}

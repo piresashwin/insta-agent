@@ -1,10 +1,20 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
+const root = path.dirname(fileURLToPath(import.meta.url))
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Shared package emits CJS for Node; Vite needs the TS source for named ESM imports.
+  resolve: {
+    alias: {
+      '@instagram-agent/shared': path.resolve(root, '../shared/src/index.ts'),
+    },
+  },
   server: {
     proxy: {
       '/api': {

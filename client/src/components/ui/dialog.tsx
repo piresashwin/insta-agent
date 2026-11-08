@@ -19,9 +19,19 @@ export function Dialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="dash-in max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-border bg-card shadow-[0_12px_40px_rgba(21,25,30,0.18)]"
+        className="dash-in relative max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-border bg-card shadow-[0_12px_40px_rgba(21,25,30,0.18)]"
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={() => onOpenChange(false)}
+          className="absolute right-3 top-3 z-30 flex h-8 w-8 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <span aria-hidden className="text-lg leading-none">
+            ×
+          </span>
+        </button>
         {children}
       </div>
     </div>
@@ -45,7 +55,11 @@ export function DialogHeader({
   children: React.ReactNode
   className?: string
 }) {
-  return <div className={cn('mb-4 space-y-1 border-b border-border pb-4', className)}>{children}</div>
+  return (
+    <div className={cn('mb-4 space-y-1 border-b border-border pb-4 pr-10', className)}>
+      {children}
+    </div>
+  )
 }
 
 export function DialogTitle({

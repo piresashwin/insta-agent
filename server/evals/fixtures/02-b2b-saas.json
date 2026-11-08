@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "name": "Cadence",
+    "niche": "B2B SaaS for revenue operations and pipeline analytics",
+    "audience": "RevOps leaders and sales ops managers at 50–500 person software companies",
+    "goals": "Position Cadence as the sharpest voice in RevOps and drive demo signups",
+    "guide_md": "Direct, data-literate, slightly contrarian. Specific numbers over adjectives. No fluff, no emoji walls.",
+    "pillars": [
+      { "name": "Pipeline hygiene", "notes": "Forecast accuracy, stage definitions, data debt" },
+      { "name": "RevOps playbooks", "notes": "Concrete frameworks teams can copy" },
+      { "name": "Metrics that lie", "notes": "Vanity metrics vs. the ones that predict revenue" }
+    ],
+    "voice": "Confident operator voice, second person. Makes a sharp claim then backs it with a number.",
+    "voiceRules": {
+      "do": ["Lead with a specific stat", "Name the exact workflow", "Be a little contrarian"],
+      "dont": ["Use buzzword soup", "Overpromise", "Pad with adjectives"],
+      "banned_words": ["synergy", "leverage", "game-changer", "revolutionary", "disrupt"],
+      "emoji_policy": "none",
+      "person": "second",
+      "caption_length": "medium",
+      "cta_styles": ["Book a 20-min demo", "Grab the free pipeline audit template"]
+    },
+    "examples": [
+      {
+        "hook": "Your forecast is 30% wrong and your CRM is why.",
+        "caption": "Most teams forecast off stage names that mean nothing. Define exit criteria per stage, enforce them, and your forecast tightens inside a quarter. We've seen accuracy jump from 61% to 88%.",
+        "hashtags": "#revops #salesoperations #pipeline #b2bsaas #forecasting",
+        "what_works": "Opens with a concrete claim, gives the mechanism, cites a real-looking number"
+      }
+    ],
+    "hashtagSets": [
+      { "name": "core", "tags": ["revops", "salesoperations", "b2bsaas", "pipeline", "forecasting"], "use_always": true, "max_pick": 5 }
+    ],
+    "visualIdentity": {
+      "palette": { "primary": "#0b1f3a", "secondary": "#1f6feb", "accent": "#36d399", "background": "#f6f8fb" },
+      "typography": { "heading_font": "Space Grotesk", "body_font": "Inter" },
+      "shot_rules": { "must": ["clean data-dashboard aesthetic", "high contrast"], "avoid": ["stock handshakes", "lifestyle photos"] },
+      "layout_defaults": { "scrim": "none", "text_align": "left", "safe_margin": 6 },
+      "render_style": "flat vector dashboard illustration, crisp and high-contrast",
+      "brand_mark": null
+    },
+    "rubric": {
+      "version": 1,
+      "criteria": [
+        { "id": "brand_fit", "target": "caption", "weight": 0.35, "description": "Direct operator voice, specific numbers, contrarian edge" },
+        { "id": "hook_claim", "target": "hook", "weight": 0.25, "description": "Hook is a sharp, specific claim — not a question platitude" },
+        { "id": "cta_action", "target": "cta", "weight": 0.15, "description": "CTA drives demo or template, clearly" },
+        { "id": "visual_clean", "target": "visual", "weight": 0.15, "description": "Dashboard/data aesthetic, no lifestyle stock" },
+        { "id": "hashtags_niche", "target": "hashtags", "weight": 0.1, "description": "RevOps/B2B tags with real reach" }
+      ]
+    },
+    "recentHooks": [
+      "Pipeline coverage of 3x is a lie your reps tell you.",
+      "If your win rate moves every week, you are measuring noise."
+    ],
+    "maxSlides": 6,
+    "timezone": "America/New_York",
+    "backgroundStyle": "solid"
+  },
+  "topics": [
+    "Why stage-based forecasting beats gut feel",
+    "The vanity metric killing your board deck",
+    "How to run a 20-minute pipeline review",
+    "Cleaning CRM data debt without a migration",
+    "Defining exit criteria for every deal stage",
+    "What RevOps should own that sales won't"
+  ],
+  "gold_posts": [
+    {
+      "topic": "The vanity metric killing your board deck",
+      "hook": "Total pipeline value is the metric that gets CROs fired.",
+      "caption": "A $40M pipeline means nothing if 70% is stuck past its sell-by date. Report weighted, time-decayed pipeline instead and your board stops celebrating fiction. Takes one view in your CRM to fix.",
+      "format": "feed"
+    }
+  ],
+  "forbidden_terms": []
+}

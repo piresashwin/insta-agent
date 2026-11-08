@@ -1,0 +1,77 @@
+{
+  "brand": {
+    "name": "Quiet Waters",
+    "niche": "Christian daily devotionals and reflective faith living",
+    "audience": "Women 30–55 who want a calmer, scripture-anchored daily rhythm",
+    "goals": "Grow a community that returns daily for a moment of peace and reflection",
+    "guide_md": "Gentle, pastoral, never preachy. Scripture is quoted with reference. Lifestyle-calm visuals, never loud graphics.",
+    "pillars": [
+      { "name": "Morning reflection", "notes": "A verse plus one quiet thought to start the day" },
+      { "name": "Rest and rhythm", "notes": "Sabbath, slowing down, trust" },
+      { "name": "Prayer prompts", "notes": "Short, personal, unforced" }
+    ],
+    "voice": "Warm, unhurried, third-person pastoral. Speaks to the reader as a trusted friend.",
+    "voiceRules": {
+      "do": ["Quote scripture with reference", "Keep it calm and personal", "End with a gentle invitation"],
+      "dont": ["Guilt the reader", "Use hustle language", "Shout with capitals or hype"],
+      "banned_words": ["grind", "hustle", "crush it", "hack"],
+      "emoji_policy": "sparing",
+      "person": "second",
+      "caption_length": "medium",
+      "cta_styles": ["Save this for a hard morning", "Share with someone who needs rest today"]
+    },
+    "examples": [
+      {
+        "hook": "The morning you least want to pray is the one that needs it most.",
+        "caption": "Before the noise starts, there is a quiet minute that belongs to you. Take it. \"Be still, and know that I am God.\" (Psalm 46:10)",
+        "hashtags": "#dailydevotional #christianwomen #quiettime #psalms #faithoverfear",
+        "what_works": "Names a real feeling, grounds it in scripture, invites without pressure"
+      }
+    ],
+    "hashtagSets": [
+      { "name": "core", "tags": ["dailydevotional", "christianwomen", "quiettime", "faithoverfear", "psalms"], "use_always": true, "max_pick": 5 }
+    ],
+    "visualIdentity": {
+      "palette": { "primary": "#3d4a3f", "secondary": "#e8e2d5", "accent": "#c7a86a", "background": "#f3efe6" },
+      "typography": { "heading_font": "Cormorant Garamond", "body_font": "Inter" },
+      "shot_rules": { "must": ["soft natural light", "calm negative space"], "avoid": ["busy collages", "neon"] },
+      "layout_defaults": { "scrim": "bottom", "text_align": "left", "safe_margin": 8 },
+      "render_style": "soft natural-light lifestyle photography, muted and warm",
+      "brand_mark": null
+    },
+    "rubric": {
+      "version": 1,
+      "criteria": [
+        { "id": "brand_fit", "target": "caption", "weight": 0.35, "description": "Calm, pastoral, scripture-anchored — never hype or guilt" },
+        { "id": "hook_quiet", "target": "hook", "weight": 0.25, "description": "Hook names a real feeling gently, no clickbait" },
+        { "id": "cta_soft", "target": "cta", "weight": 0.15, "description": "Invitation is gentle and optional" },
+        { "id": "visual_calm", "target": "visual", "weight": 0.15, "description": "Soft light, negative space, muted palette" },
+        { "id": "hashtags_niche", "target": "hashtags", "weight": 0.1, "description": "Faith-niche tags with real search value" }
+      ]
+    },
+    "recentHooks": [
+      "Rest is not a reward you earn. It is a gift you receive.",
+      "You do not have to carry tomorrow's weight today."
+    ],
+    "maxSlides": 5,
+    "timezone": "America/Chicago",
+    "backgroundStyle": "photo"
+  },
+  "topics": [
+    "Finding stillness in a busy season",
+    "A prayer for anxious mornings",
+    "Why Sabbath rest matters",
+    "Trusting God with an uncertain decision",
+    "Gratitude as a daily practice",
+    "Letting go of yesterday's regret"
+  ],
+  "gold_posts": [
+    {
+      "topic": "A prayer for anxious mornings",
+      "hook": "If you woke up already behind, start here.",
+      "caption": "Anxiety loves an empty morning. Give it a verse instead. \"Cast all your anxiety on him because he cares for you.\" (1 Peter 5:7) Breathe. Begin again.",
+      "format": "feed"
+    }
+  ],
+  "forbidden_terms": []
+}
